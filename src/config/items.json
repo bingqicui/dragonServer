@@ -1,0 +1,5 @@
+{
+  "potion_hp": { "id": "potion_hp", "name": "生命药水", "type": "consumable", "effect": { "hp": 50 } },
+  "key_bronze": { "id": "key_bronze", "name": "青铜钥匙", "type": "key" },
+  "gem_01": { "id": "gem_01", "name": "宝石", "type": "material", "sellPrice": 100 }
+}

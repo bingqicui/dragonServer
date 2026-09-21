@@ -1,0 +1,36 @@
+{
+  "sword_01": {
+    "id": "sword_01",
+    "name": "铁剑",
+    "maxLevel": 5,
+    "unlockCost": { "coins": 500 },
+    "upgradeCost": {
+      "2": { "coins": 100 },
+      "3": { "coins": 200 },
+      "4": { "coins": 400 },
+      "5": { "coins": 800 }
+    },
+    "attributes": {
+      "1": { "attack": 10 },
+      "2": { "attack": 15 },
+      "3": { "attack": 22 },
+      "4": { "attack": 30 },
+      "5": { "attack": 40 }
+    }
+  },
+  "bow_01": {
+    "id": "bow_01",
+    "name": "木弓",
+    "maxLevel": 3,
+    "unlockCost": { "coins": 300 },
+    "upgradeCost": {
+      "2": { "coins": 150 },
+      "3": { "coins": 350 }
+    },
+    "attributes": {
+      "1": { "attack": 8 },
+      "2": { "attack": 14 },
+      "3": { "attack": 25 }
+    }
+  }
+}

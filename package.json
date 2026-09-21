@@ -1,0 +1,31 @@
+{
+  "name": "game-server",
+  "version": "1.0.0",
+  "description": "Cocos Creator 游戏后端 - Express + MongoDB",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:raw": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.0",
+    "mongodb-memory-server": "^10.1.2",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}
