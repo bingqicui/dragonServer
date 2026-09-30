@@ -2,7 +2,7 @@
 // 独立成文件，避免 dispatch <-> handlers 循环依赖。
 export const CMD = {
   TOKEN_REQ: 2,
-  LOGIN_INFO_REQ: 3,
+  // 3 原 LOGIN_INFO_REQ，已合并到 ROLE_INFO_REQ(cmd=4)，号段留空备用
   ROLE_INFO_REQ: 4,
   HEART_REQ: 5,
   RED_INFO_ON_LOGIN: 6,

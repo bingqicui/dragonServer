@@ -4,10 +4,11 @@ import { Handler, requireAuth } from './types';
 
 // cmd 4/6/1001：角色信息、红点、引导进度存档
 export const userHandlers: Record<number, Handler> = {
-  // 4 角色信息
+  // 4 角色信息（含原 cmd=3 的 serverTime，登录后一次拉全）
   [CMD.ROLE_INFO_REQ]: async (_payload, ctx) => {
     requireAuth(ctx);
-    return userService.getProfile(ctx.userId!);
+    const profile = await userService.getProfile(ctx.userId!);
+    return { ...profile, serverTime: Math.floor(Date.now() / 1000) };
   },
 
   // 6 红点全量

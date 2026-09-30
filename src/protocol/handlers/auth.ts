@@ -11,9 +11,5 @@ export const authHandlers: Record<number, Handler> = {
     }
     return authService.loginByThirdParty(loginType, payload);
   },
-
-  [CMD.LOGIN_INFO_REQ]: async (_payload, ctx) => {
-    requireAuth(ctx);
-    return { serverTime: Math.floor(Date.now() / 1000), zoneId: ctx.zoneId, accountId: ctx.accountId };
-  },
+  // 3 原 LOGIN_INFO_REQ 已合并到 cmd=4 ROLE_INFO_REQ，不再单独存在
 };
