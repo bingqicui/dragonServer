@@ -1,64 +1,59 @@
 import crypto from 'crypto';
 import { BusinessError } from './errors';
+import { decompressFromBase64 } from 'lz-string';
 
 export interface DecodedRequest {
   cmd: number;
-  payload: any;
+  payload: Record<string, any>;
   token?: string;
-  resVer?: string;
+  uid?: string;
+  serverId?: number | string;
 }
 
 /**
- * 解析前端 MKHttp 请求体，兼容两种形态：
- * 1) 明文：body 直接是 { cmd, payload, token, resVer, isDevVersion }
- * 2) 加密：body 是 { o: base64(UTF8(JSON(信封))), s: MD5(JSON(信封) + secret) }
+ * 解析前端 MKHttp 网关请求（application/json）：
+ *   { action: number, data: string(compressToBase64), sign: md5(data+KEY), retry?: boolean }
  *
- * 加密算法对齐前端 MKCodeEncry：
- * - Base64 用标准字母表，与 Node Buffer 等价；
- * - MD5 为标准 RFC1321，与 crypto 等价。
- * 因此这里用 Buffer + crypto 对称实现，无需移植前端代码。
+ * - plain = JSON.parse(decompressFromBase64(data)) = { uid, token, server_id, ...业务参数 }
+ * - 验签：md5(data + secret) === sign
+ *   （请求侧不允许 sign === key 的绕过，只有响应系统错才用该约定）
+ * - uid / token / server_id 为信封字段，剥离后其余作为业务 payload 交给 handler
  */
-export function decodeRequest(raw: string, secret: string): DecodedRequest {
-  if (!raw || typeof raw !== 'string') {
+export function decodeRequest(body: any, secret: string): DecodedRequest {
+  if (body == null || typeof body !== 'object') {
     throw new BusinessError('请求体为空', 4000);
   }
 
-  let env: any;
+  const { action, data, sign } = body as { action?: unknown; data?: unknown; sign?: unknown };
+  if (typeof action !== 'number' || typeof data !== 'string' || typeof sign !== 'string') {
+    throw new BusinessError('缺少或非法 action/data/sign', 4004);
+  }
+
+  const calc = crypto.createHash('md5').update(data + secret).digest('hex');
+  if (calc !== sign) {
+    throw new BusinessError('请求签名校验失败', 4001);
+  }
+
+  const plainStr = decompressFromBase64(data);
+  if (plainStr == null) {
+    throw new BusinessError('data 解压失败', 4000);
+  }
+  let plain: any;
   try {
-    env = JSON.parse(raw);
+    plain = JSON.parse(plainStr);
   } catch {
-    throw new BusinessError('请求体不是合法 JSON', 4000);
+    throw new BusinessError('data 内层 JSON 非法', 4000);
+  }
+  if (plain == null || typeof plain !== 'object') {
+    throw new BusinessError('data 内层结构非法', 4000);
   }
 
-  let inner: any;
-  if (env && typeof env.o === 'string' && typeof env.s === 'string') {
-    // 加密分支：o 解 base64 得到内层 JSON 串，s 为签名
-    const jsonStr = Buffer.from(env.o, 'base64').toString('utf8');
-    const expect = crypto.createHash('md5').update(jsonStr + secret).digest('hex');
-    if (expect !== env.s) {
-      throw new BusinessError('请求签名校验失败', 4001);
-    }
-    try {
-      inner = JSON.parse(jsonStr);
-    } catch {
-      throw new BusinessError('内层数据解析失败', 4000);
-    }
-  } else {
-    // 明文分支（前端 isEncrp=false）
-    inner = env;
-  }
-
-  if (typeof inner?.cmd !== 'number') {
-    throw new BusinessError('缺少或非法 cmd', 4000);
-  }
-
-  const token =
-    typeof inner.token === 'string' && inner.token ? inner.token : undefined;
-
+  const { uid, token, server_id, ...payload } = plain;
   return {
-    cmd: inner.cmd,
-    payload: inner.payload && typeof inner.payload === 'object' ? inner.payload : {},
-    token,
-    resVer: typeof inner.resVer === 'string' ? inner.resVer : undefined,
+    cmd: action,
+    payload,
+    token: typeof token === 'string' && token ? token : undefined,
+    uid: typeof uid === 'string' && uid ? uid : undefined,
+    serverId: server_id !== undefined ? server_id : undefined,
   };
 }

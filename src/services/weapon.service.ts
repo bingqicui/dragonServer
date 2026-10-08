@@ -62,6 +62,38 @@ export const weaponService = {
     return { weaponId, level: targetLevel, coins: updated.coins };
   },
 
+  // 武器穿戴：置位 weapons[id].isFitOut = true
+  async equip(userId: string, weaponId: string) {
+    const user = await userRepo.findById(userId);
+    if (!user) throw new BusinessError('用户不存在');
+    const owned = user.weapons[weaponId];
+    if (!owned || !owned.unlocked) throw new BusinessError('武器未解锁');
+
+    const updated = await userRepo.updateAtomic(
+      userId,
+      { $set: { [`weapons.${weaponId}.isFitOut`]: true } },
+      {}
+    );
+    if (!updated) throw new BusinessError('操作失败');
+    return { weaponId, isFitOut: true };
+  },
+
+  // 武器卸下：置位 weapons[id].isFitOut = false
+  async unequip(userId: string, weaponId: string) {
+    const user = await userRepo.findById(userId);
+    if (!user) throw new BusinessError('用户不存在');
+    const owned = user.weapons[weaponId];
+    if (!owned || !owned.unlocked) throw new BusinessError('武器未解锁');
+
+    const updated = await userRepo.updateAtomic(
+      userId,
+      { $set: { [`weapons.${weaponId}.isFitOut`]: false } },
+      {}
+    );
+    if (!updated) throw new BusinessError('操作失败');
+    return { weaponId, isFitOut: false };
+  },
+
   // 返回玩家武器状态 + 完整配置（前端用于展示/校验）
   async getWeapons(userId: string) {
     const user = await userRepo.findById(userId);

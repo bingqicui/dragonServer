@@ -3,6 +3,8 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IWeaponState {
   level: number;
   unlocked: boolean;
+  /** 是否穿戴（武器系统）。前端本地改完 isFitOut 再经 USER_DATA_SET 落库 */
+  isFitOut?: boolean;
 }
 
 /** 区角色（原 User 集合）。登录凭证已拆到 Account。 */
