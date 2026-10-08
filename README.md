@@ -50,39 +50,54 @@ serverCode/
 
 ## 接口：只有 `POST /gateway`
 
-前端 `MKHttp` 是「单 URL + 数字 `cmd` + 加密信封」协议，服务器**不提供 REST 接口**。
+前端 `MKHttp` 是「单 URL + 数字 `cmd`(action) + 压缩信封」协议，服务器**不提供 REST 接口**。请求体为 `application/json`。
 
-- 请求体：`{ cmd, payload, token, resVer, isDevVersion }`（加密时外层为 `{ o, s }`，`o=base64(JSON)`、`s=MD5(JSON+secret)`）
-- 响应体：`{ ErrorCode, Payload, t }`，**永远 HTTP 200**（错误只走 `ErrorCode`）
+- **请求信封**：`{ action: <cmd 数字>, data: <压缩串>, sign: <md5(data+KEY)>, retry?: boolean }`
+  - `data = LZString.compressToBase64(JSON.stringify({ uid, token, server_id, ...业务参数 }))`
+  - 签名 `sign = md5(data + GATEWAY_SIGN_KEY)`；密钥 `GATEWAY_SIGN_KEY` 默认 `51E3D400670CC4D9C82A49EE5C1969D1`（与前端 `GATEWAY_SIGN_KEY`/`getRequestSecret()` 一致）
+  - 服务器解压 `data` 后把 `uid/token/server_id` 剥离为信封字段，其余作为业务 `payload` 交给 handler
+- **响应信封**：**永远 HTTP 200**，对象 `{ code, action, data, error, sign }`
+  - `data = LZString.compressToBase64(JSON.stringify(payload))`，`sign = md5(data + KEY)`
+  - 成功：`code=0, error=0`；业务失败：`code<0, error=0`；系统错误：`code=0, error=<数字码>, data="", sign=KEY 本身`
+  - 前端 `code<0` 判失败、`code===0` 判成功，并按 `action` 数字路由回对应请求
 
-| cmd | 含义 | 需 token |
-|---|---|---|
-| 2 | 登录/取 token（`loginType` 分流：0 账号密码、1 微信、2 Google） | 否 |
-| 3 | 登录后信息 | 是 |
-| 4 | 角色信息 | 是 |
-| 5 | 心跳 | 否 |
-| 6 | 红点 | 是 |
-| 7 | 背包（武器状态） | 是 |
-| 8 | 武器解锁 | 是 |
-| 9 | 武器升级 | 是 |
-| 1001 | 引导进度存档 | 是 |
+| cmd | 含义 | 需 token | 备注 |
+|---|---|---|---|
+| 10000 | 心跳 | 否 | |
+| 10001 | 登录/取 token（`loginType` 0 账号密码 /1 微信 /2 Google） | 否 | |
+| 10003 | 登录后角色信息（含 serverTime，回带 userData） | 是 | 10002 为服务端下发号，非请求 |
+| 10010 | 背包/武器状态全量 | 是 | |
+| 8 | 武器解锁 | 是 | |
+| 9 | 武器升级 | 是 | 前端本地计算，结果经 cmd 15 存档 |
+| 16 | 武器穿戴 | 是 | 前端本地计算，结果经 cmd 15 存档 |
+| 17 | 武器卸下 | 是 | 前端本地计算，结果经 cmd 15 存档 |
+| 15 | 原样保存 userData（含 items/weapons） | 是 | 升级/穿戴/卸下的落库点 |
+| 13 | 区列表 | 是(account) | |
+| 14 | 选区进入（拿 game token） | 是(account) | |
+| 1001 | 引导进度存档 | 是 | |
 
-cmd 数字由服务器定义，前端 `MSD_ID` 对齐即可；新增业务在 `src/protocol/handlers/*.ts` 加一行映射。
-协议细节、加密算法、改动清单见《前端协议兼容计划.md》。
+cmd 数字在 `src/protocol/cmd.ts` 的 `CMD` 常量（前端 `MSD_ID` 对齐），**禁止硬编码数字**。新增业务在 `src/protocol/handlers/*.ts` 加一行映射。
 
-明文调试（`isEncrp=false`，不经加密信封）：
+> 调试说明：请求/响应都走 LZString 压缩 + 签名，裸 `curl` 需先压缩。最简方式是用 `node e2e_test.js`（联调）或前端联调；也可用下面一段 Node 直接构造登录请求：
 
 ```bash
-curl -X POST http://localhost:3000/gateway -H "Content-Type: application/x-www-form-urlencoded" \
-     -d "{\"cmd\":2,\"payload\":{\"loginType\":0,\"username\":\"testuser\",\"password\":\"123456\"}}"
+node -e '
+const crypto=require("crypto"); const {compressToBase64}=require("lz-string");
+const KEY="51E3D400670CC4D9C82A49EE5C1969D1";
+const plain={uid:"",token:"",server_id:"",loginType:0,username:"test",password:"123456"};
+const data=compressToBase64(JSON.stringify(plain));
+const sign=crypto.createHash("md5").update(data+KEY).digest("hex");
+const body=JSON.stringify({action:10001,data,sign,retry:false});
+require("http").request({host:"localhost",port:3000,path:"/gateway",method:"POST",headers:{"Content-Type":"application/json"}},r=>{let s="";r.on("data",d=>s+=d);r.on("end",()=>console.log(s));}).end(body);
+'
 ```
 
 `npm run typecheck` 类型检查，`node e2e_test.js` 跑端到端测试（需先启动服务器）。
 
 ## Cocos 对接要点
 
-- `MKHttp` 的 `_url` 指向 `http://<host>:<port>/gateway`，secret 与服务器 `.env` 的 `REQUEST_SECRET` 一致
-- 登录（cmd=2）拿到 token 后本地保存，后续请求放信封顶层 `token` 字段
+- `MKHttp` 的 `_url` 指向 `http://<host>:<port>/gateway`；签名密钥与服务器 `.env` 的 `GATEWAY_SIGN_KEY` 一致
+- 登录（cmd=10001）拿到 token 后放入后续请求信封的 `token` 字段
 - **静态配置表由前端自带 / CDN 分发**，不走服务器；服务器仅在内部用同一份配置做权威校验
 
 ## 生产部署（Linux 云服务器，简述）

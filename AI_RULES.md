@@ -107,40 +107,46 @@ dispatch → handler → service → repository → model
 
 ### 3.2 请求格式
 
-明文模式（开发调试用）：
+网关信封（`application/json`，始终压缩 + 签名，无明文模式）：
 
 
 
 ```
-{ "cmd": 2, "payload": { ... }, "token": "xxx" }
+{
+  "action": 10001,
+  "data": "<LZString.compressToBase64(JSON.stringify({ uid, token, server_id, ...业务参数 }))>",
+  "sign": "md5(data + GATEWAY_SIGN_KEY)",
+  "retry": false
+}
 ```
 
-加密模式（生产）：
-
-
-
-```
-{ "o": "base64(内层JSON)", "s": "MD5(内层JSON + REQUEST\_SECRET)" }
-```
+- `data` 为 `LZString.compressToBase64(JSON.stringify(plain))`，`plain` 含 `uid / token / server_id` 及业务参数
+- `sign = md5(data + GATEWAY_SIGN_KEY)`，密钥 `GATEWAY_SIGN_KEY` 默认 `51E3D400670CC4D9C82A49EE5C1969D1`（与前端 `getRequestSecret()` 一致）
+- 服务器解压 `data` 后剥离 `uid/token/server_id`，其余作为业务 `payload` 交给 handler
 
 ### 3.3 响应格式
 
-**永远 HTTP 200**，错误只走 `ErrorCode` 字段，避免前端把逻辑错误当网络故障重试。
+**永远 HTTP 200**，对象 `{ code, action, data, error, sign }`，避免前端把逻辑错误当网络故障重试。
 
-成功：
+- `data = LZString.compressToBase64(JSON.stringify(payload))`，`sign = md5(data + GATEWAY_SIGN_KEY)`
+- 成功：`code=0, error=0`
+- 业务失败：`code<0, error=0`（前端 `code<0` 判失败）
+- 系统失败：`code=0, error=<数字码>`（如 `-10015` 强制退出），`data="", sign=GATEWAY_SIGN_KEY 本身`
 
-
-
-```
-{ "ErrorCode": 0, "Payload": { ... }, "t": 1700000000 }
-```
-
-失败：
+成功示例：
 
 
 
 ```
-{ "ErrorCode": 4001, "Payload": null, "Msg": "错误信息", "t": 1700000000 }
+{ "code": 0, "action": 10001, "data": "<压缩串>", "error": 0, "sign": "<md5(data+KEY)>" }
+```
+
+系统错误示例：
+
+
+
+```
+{ "code": 0, "action": 10001, "data": "", "error": -10015, "sign": "51E3D400670CC4D9C82A49EE5C1969D1" }
 ```
 
 ### 3.4 新增业务 cmd 的步骤
@@ -164,7 +170,7 @@ dispatch → handler → service → repository → model
 | `requireAuth(ctx)`    | 必须是 game token（已选区） | 游戏内业务：背包、武器、存档等 |
 | `requireAccount(ctx)` | 只要有 accountId 即可    | 选区相关：区列表、进入区    |
 
-登录类 cmd（如 cmd=2 登录）**不需要守卫**，由 service 内部处理。
+登录类 cmd（如 cmd=10001 登录）**不需要守卫**，由 service 内部处理。
 
 
 
@@ -196,11 +202,13 @@ dispatch → handler → service → repository → model
 
 
 ```
-cmd=2 登录（账号密码/微信/Google）→ 拿到 account token + 区列表
+cmd=10001 登录（账号密码/微信/Google）→ 拿到 account token + 区列表
 
 cmd=13 获取区列表（account token）
 
 cmd=14 进入指定区 → 拿到 game token
+
+cmd=10003 拉全量角色信息（含 userData）
 
 后续所有游戏业务用 game token
 ```
@@ -221,7 +229,7 @@ cmd=14 进入指定区 → 拿到 game token
 
 * 金币**只能由服务端增减**，禁止客户端直接写入
 
-* 存档接口（cmd=1001）里会**强制删除 coins 字段**
+* 存档接口（cmd=1001 引导存档、cmd=15 userData 全量存档）里会**强制删除 coins 字段**；cmd 15 为前端本地计算（武器升级/穿戴/卸下）后的整包 userData 落库点
 
 * 扣费操作必须用**原子条件更新**（`findOneAndUpdate` + 条件 `{ coins: { $gte: cost } }`），防止并发扣成负数
 
@@ -301,7 +309,7 @@ throw new BusinessError('金币不足', 4001);
 
 * `code` 是业务错误码，不是 HTTP 状态码
 
-* HTTP 永远返回 200，错误信息走响应体的 `ErrorCode` 和 `Msg`
+* HTTP 永远返回 200，错误信息走响应体的 `code`（业务错，`code<0`）或 `error`（系统错，数字码）
 
 * handler 层不需要 try-catch，统一由 dispatch 捕获
 
@@ -392,11 +400,17 @@ node e2e\_test.js     # 自动起内存 MongoDB，跑全流程测试
 
 
 ```
-curl -X POST http://localhost:3000/gateway \\
-
-&#x20; -H "Content-Type: application/x-www-form-urlencoded" \\
-
-&#x20; -d '{"cmd":2,"payload":{"loginType":0,"username":"test","password":"123456"}}'
+# 请求/响应均走 LZString 压缩 + 签名，建议用 node e2e_test.js 或前端联调。
+# 下面一段 Node 直接构造一次登录请求（需 lz-string 已安装）：
+node -e '
+const crypto=require("crypto"); const {compressToBase64}=require("lz-string");
+const KEY="51E3D400670CC4D9C82A49EE5C1969D1";
+const plain={uid:"",token:"",server_id:"",loginType:0,username:"test",password:"123456"};
+const data=compressToBase64(JSON.stringify(plain));
+const sign=crypto.createHash("md5").update(data+KEY).digest("hex");
+const body=JSON.stringify({action:10001,data,sign,retry:false});
+require("http").request({host:"localhost",port:3000,path:"/gateway",method:"POST",headers:{"Content-Type":"application/json"}},r=>{let s="";r.on("data",d=>s+=d);r.on("end",()=>console.log(s));}).end(body);
+'
 ```
 
 

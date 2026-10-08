@@ -67,14 +67,15 @@ dragon/
 
 | 前端 `MSD_ID`（HttpDefine.ts） | 后端 `CMD`（cmd.ts） | 含义 |
 |---|---|---|
-| TOKEN_REQ: 2 | TOKEN_REQ: 2 | 登录/取 token |
-| ~~LOGIN_INFO_REQ: 3~~ | ~~已删除~~ | 已合并到 cmd=4 |
-| ROLE_INFO_REQ: 4 | ROLE_INFO_REQ: 4 | 角色信息（含 serverTime） |
-| HEART_REQ: 5 | HEART_REQ: 5 | 心跳 |
-| RED_INFO_ON_LOGIN: 6 | RED_INFO_ON_LOGIN: 6 | 红点 |
-| BAG: 7 | BAG: 7 | 背包/武器 |
+| HEART_REQ: 10000 | HEART_REQ: 10000 | 心跳 |
+| TOKEN_REQ: 10001 | TOKEN_REQ: 10001 | 登录/取 token |
+| ROLE_INFO_REQ: 10003 | ROLE_INFO_REQ: 10003 | 角色信息（含 serverTime，回带 userData）；10002 为服务端下发号，非请求 |
+| BAG: 10010 | BAG: 10010 | 背包/武器状态全量 |
 | WEAPON_UNLOCK: 8 | WEAPON_UNLOCK: 8 | 武器解锁 |
-| WEAPON_UPGRADE: 9 | WEAPON_UPGRADE: 9 | 武器升级 |
+| WEAPON_UPGRADE: 9 | WEAPON_UPGRADE: 9 | 武器升级（前端本地计算，结果经 cmd 15 存档） |
+| WEAPON_EQUIP: 16 | WEAPON_EQUIP: 16 | 武器穿戴（前端本地计算，结果经 cmd 15 存档） |
+| WEAPON_UNEQUIP: 17 | WEAPON_UNEQUIP: 17 | 武器卸下（前端本地计算，结果经 cmd 15 存档） |
+| USER_DATA_SET: 15 | USER_DATA_SET: 15 | 原样保存 userData（升级/穿戴/卸下的落库点） |
 | ZONE_LIST: 13 | ZONE_LIST: 13 | 区服列表 |
 | ZONE_ENTER: 14 | ZONE_ENTER: 14 | 选区进入 |
 | ROLE_GUIDE_RECORD: 1001 | ROLE_GUIDE_RECORD: 1001 | 引导进度存档 |
@@ -156,9 +157,10 @@ assets/resources/ui/
 ## 六、前后端联调约定
 
 1. **配置表**：前端自带（`assets/scripts/game/config/`），后端仅做内部校验，不下发
-2. **登录流程**：cmd=2 拿 account token → cmd=13 看区列表 → cmd=14 选区拿 game token → cmd=4 拉全量角色信息
-3. **错误处理**：HTTP 永远 200，业务错误走 `ErrorCode` 字段
-4. **加密**：生产环境启用 MD5 签名验签，开发可用明文模式
+2. **登录流程**：cmd=10001 拿 account token → cmd=13 看区列表 → cmd=14 选区拿 game token → cmd=10003 拉全量角色信息（含 userData）
+3. **错误处理**：HTTP 永远 200；响应对象 `{ code, action, data, error, sign }`——`code<0` 业务失败、`code===0` 成功；系统错误 `error` 为数字码（`-10015` 触发前端强制退出）。前端按 `action` 数字路由回对应请求
+4. **信封与签名**：请求/响应 `data` 均为 `LZString.compressToBase64(JSON)`，签名 `sign = md5(data + GATEWAY_SIGN_KEY)`（密钥 `51E3D400670CC4D9C82A49EE5C1969D1`）；系统错误时 `data=""`、`sign = 密钥本身`。无明文模式，始终压缩+签名
+5. **本地计算**：武器升级/穿戴/卸下（cmd 9/16/17）由前端 `serverLocal` 本地算完，把整包 userData 经 **cmd 15（USER_DATA_SET）** 存回服务器；服务器对这些号仅作预留，真实触点只有 cmd 15
 
 ---
 
