@@ -39,6 +39,9 @@ router.post(
 
       // 鉴权：若带 token 则验签取身份（登录类 cmd 无 token，交给 requireAuth 判定）
       const ctx: Ctx = {};
+      // 信封层字段透传给 handler：puid / server_id 随每请求必带，登录创角要用
+      ctx.puid = decoded.uid;
+      ctx.serverId = decoded.serverId;
       if (decoded.token) {
         try {
           const p = authService.verifyToken(decoded.token);
@@ -47,7 +50,6 @@ router.post(
           ctx.username = p.username;
           if (p.kind === 'game') {
             ctx.userId = p.userId;
-            ctx.zoneId = p.zoneId;
           }
         } catch {
           // token 无效：置空，由 requireAuth 在需要登录的 cmd 抛 401

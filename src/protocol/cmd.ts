@@ -1,8 +1,7 @@
 // 前端 MSD_ID 协议号（与前端 HttpDefine / MKHttp 对齐）
 // 独立成文件，避免 dispatch <-> handlers 循环依赖。
 export const CMD = {
-  /** 登录 */
-  TOKEN_REQ: 10001,
+  LOGIN:10001,
   /** 登录后拉取角色信息。10002 是服务端下发，不作为请求号 */
   ROLE_INFO_REQ: 10003,
   /** 心跳请求 */
