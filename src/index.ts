@@ -4,6 +4,8 @@ import cors from 'cors';
 import { connectDB } from './utils/db';
 import { BusinessError } from './utils/errors';
 import gatewayRouter from './protocol/dispatch';
+import { authService } from './services/auth.service';
+import { DEFAULT_ZONE_ID } from './types/player';
 
 const app = express();
 app.use(cors());
@@ -11,6 +13,42 @@ app.use(express.json());
 
 // 健康检查
 app.get('/health', (req, res) => res.json({ code: 0, msg: 'ok' }));
+
+// 兼容前端 LoginScene 的 PHP 自动登录：GET 明文 JSON，非网关信封。
+// 前端 DEV_SERVER_LIST 的 host 形如 http://<ip>//sdk/sdkDev.php?action=autoLogin&openId=，
+// 这里挂同路径，开发者无需改前端即可联调。返回的 token 为 account token（ZONE_ENTER requireAccount 需用）。
+app.get('/sdk/sdkDev.php', async (req: Request, res: Response) => {
+  try {
+    if (String(req.query.action ?? '') !== 'autoLogin') {
+      res.json({ code: 1, description: 'unsupported action' });
+      return;
+    }
+    const openId = String(req.query.openId ?? '').trim();
+    if (!openId) {
+      res.json({ code: 1, description: '缺少 openId' });
+      return;
+    }
+    const auth = await authService.autoLogin(openId);
+    const gatewayHost =
+      process.env.GATEWAY_PUBLIC_URL || `${req.protocol}://${req.get('host') || 'localhost'}/gateway`;
+    res.json({
+      code: 0,
+      platform_id: 0,
+      puid: auth.accountId,
+      token: auth.token,
+      user_status: 0,
+      is_new: 0,
+      server_info: {
+        server_id: DEFAULT_ZONE_ID,
+        server_name: process.env.SERVER_NAME || '初入幻想',
+        host: gatewayHost,
+        open_server: process.env.OPEN_SERVER_TIME || new Date().toISOString(),
+      },
+    });
+  } catch (e: any) {
+    res.json({ code: 1, description: e?.message || 'autoLogin failed' });
+  }
+});
 
 // 前端 MKHttp 网关：单 URL + cmd 分发 + 加密信封（详见 plan/前端协议兼容计划.md）
 // 所有业务入口统一走 /gateway，不再暴露任何 REST 路由。

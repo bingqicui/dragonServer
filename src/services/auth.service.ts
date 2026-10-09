@@ -74,6 +74,21 @@ export const authService = {
     return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
   },
 
+  /**
+   * 平台 / SDK 自动登录（兼容前端 LoginScene 的 PHP autoLogin）。
+   * 无密码：按 openId 找/建账号，签发 account token（供后续 ZONE_ENTER 的 requireAccount 使用）。
+   */
+  async autoLogin(openId: string): Promise<AccountAuthResult> {
+    if (!openId) throw new BusinessError('缺少 openId', 400);
+    let account = await accountRepo.findByUsername(openId);
+    if (!account) {
+      // 自动登录无密码：用 openId 派生一个稳定哈希，避免空密码落库
+      const passwordHash = await bcrypt.hash(openId + '_auto', 10);
+      account = await accountRepo.create({ username: openId, passwordHash });
+    }
+    return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
+  },
+
   async loginByThirdParty(loginType: number, payload: any): Promise<AccountAuthResult> {
     let provider: string;
     let providerId: string;
