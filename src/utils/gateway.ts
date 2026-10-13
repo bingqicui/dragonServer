@@ -1,5 +1,8 @@
 import crypto from 'crypto';
 import { compressToBase64 } from 'lz-string';
+import { GatewayResponse } from '../types/gateway';
+
+export type { GatewayResponse };
 
 // 网关签名密钥：与前端 GATEWAY_SIGN_KEY / getRequestSecret() 一致（GlobalDefine.ts:26）。
 // 与请求侧信封密钥(REQUEST_SECRET)相互独立，勿混用。
@@ -10,14 +13,6 @@ export { GATEWAY_SIGN_KEY };
 // 与前端 MKGatewayCodec / _finishGateway 完全对齐：
 // - 成功：data = LZString.compressToBase64(JSON.stringify(payload))，sign = md5(data + KEY)
 // - 系统错：data = ""，sign = 密钥本身（前端 verifyGatewaySign 允许 sign === key）
-export interface GatewayResponse {
-  code: number;
-  action: number;
-  data: string;
-  error: number;
-  sign: string;
-}
-
 function signData(data: string): string {
   return crypto.createHash('md5').update(data + GATEWAY_SIGN_KEY).digest('hex');
 }

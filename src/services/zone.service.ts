@@ -2,14 +2,8 @@ import { accountRepo } from '../repositories/account.repo';
 import { userRepo } from '../repositories/user.repo';
 import { PlayerRecord } from '../types/player';
 import { configService } from './config.service';
+import { ZoneListItem } from '../types/zone';
 import { BusinessError } from '../utils/errors';
-
-export interface ZoneListItem {
-  zoneId: number;
-  name: string;
-  status: string;
-  hasRole: boolean;
-}
 
 export const zoneService = {
   async listForAccount(accountId: string): Promise<ZoneListItem[]> {

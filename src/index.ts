@@ -34,7 +34,7 @@ app.get('/sdk/sdkDev.php', async (req: Request, res: Response) => {
     res.json({
       code: 0,
       platform_id: 0,
-      puid: auth.accountId,
+      puid: auth.platformPuid,
       token: auth.token,
       user_status: 0,
       is_new: 0,

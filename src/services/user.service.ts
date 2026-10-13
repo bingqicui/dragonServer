@@ -1,19 +1,47 @@
 import { userRepo } from '../repositories/user.repo';
+import { Role } from './role/role';
+import { DEFAULT_ZONE_ID, PlayerRecord } from '../types/player';
+import { Ctx } from '../protocol/handlers/types';
 import { BusinessError } from '../utils/errors';
 
+function zoneIdOf(serverId: number | string | undefined): number {
+  const raw = Number(serverId);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_ZONE_ID;
+}
+
 export const userService = {
-  // 读取玩家档案（货币 + 游戏进度 + 武器状态）
-  async getProfile(userId: string) {
-    const user = await userRepo.findById(userId);
-    if (!user) throw new BusinessError('用户不存在');
-    return {
-      username: user.username,
-      coins: user.coins,
-      userData: user.userData,
-      weapons: user.weapons,
-      zoneId: user.zoneId,
-      accountId: user.accountId,
-    };
+  /**
+   * 账号 token 或游戏 token 都能定位角色。
+   * 请求带了 uid 就按这个角色 id 查，并核对属于当前账号。
+   * 没带 uid 时用账号加 server_id，没有角色则创建。
+   */
+  async resolveRole(ctx: Ctx): Promise<PlayerRecord> {
+    if (!ctx.accountId) throw new BusinessError('未登录', 401);
+    if (ctx.userId) {
+      const role = await userRepo.findById(ctx.userId);
+      if (!role || role.accountId !== ctx.accountId) throw new BusinessError('角色不存在', 400);
+      return role;
+    }
+    const zoneId = zoneIdOf(ctx.serverId);
+    const existing = await userRepo.findByAccountAndZone(ctx.accountId, zoneId);
+    if (existing) return existing;
+    return userRepo.createInZone(ctx.accountId, ctx.username || ctx.accountId, zoneId);
+  },
+
+  /** 10012：道具和武器写入角色，不改 playerInfo，所以不推 10002 */
+  async saveClientInfo(role: Role, incoming: unknown) {
+    if (incoming == null || typeof incoming !== 'object' || Array.isArray(incoming)) {
+      throw new BusinessError('缺少 info', 400);
+    }
+    let info: Record<string, any>;
+    try {
+      info = JSON.parse(JSON.stringify(incoming));
+    } catch {
+      throw new BusinessError('info 无法保存', 400);
+    }
+    role.replaceBag(info);
+    await role.save();
+    return {};
   },
 
   // 保存玩家存档 —— 服务器权威原则：
@@ -21,8 +49,9 @@ export const userService = {
   // 2) 已知数值字段做非负校验，防止伪造异常数据。
   // 兼容两种客户端传参：直接传 userData 内容 {...}，或包一层 { userData: {...} }。
   async saveUserData(userId: string, incoming: Record<string, any>) {
-    const user = await userRepo.findById(userId);
-    if (!user) throw new BusinessError('用户不存在');
+    const record = await userRepo.findById(userId);
+    if (!record) throw new BusinessError('用户不存在');
+    const role = Role.load(record);
 
     let data: Record<string, any>;
     if (
@@ -45,8 +74,8 @@ export const userService = {
       }
     }
 
-    const updated = await userRepo.saveUserData(userId, data);
-    if (!updated) throw new BusinessError('用户不存在');
+    role.replaceUserData(data);
+    const updated = await role.save();
     return { userData: updated.userData, coins: updated.coins };
   },
 };

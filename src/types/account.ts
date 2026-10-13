@@ -5,12 +5,15 @@ export interface AccountRecord {
   username: string;
   passwordHash?: string;
   thirdParties: IThirdParty[];
+  /** 平台 puid。没有分配过则为空 */
+  platformPuid?: number;
 }
 
 export interface CreateAccountInput {
   username: string;
   passwordHash?: string;
   thirdParties?: IThirdParty[];
+  platformPuid?: number;
 }
 
 export function toAccountRecord(doc: any | null | undefined): AccountRecord | null {
@@ -22,5 +25,6 @@ export function toAccountRecord(doc: any | null | undefined): AccountRecord | nu
     username: doc.username,
     passwordHash: doc.passwordHash,
     thirdParties: Array.isArray(doc.thirdParties) ? doc.thirdParties : [],
+    platformPuid: typeof doc.platformPuid === 'number' && doc.platformPuid > 0 ? doc.platformPuid : undefined,
   };
 }

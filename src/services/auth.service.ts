@@ -1,49 +1,45 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { accountRepo } from '../repositories/account.repo';
+import { AccountRecord } from '../types/account';
 import { PlayerRecord } from '../types/player';
 import { BusinessError } from '../utils/errors';
 import { LoginType, LOGIN_TYPE_PROVIDER } from '../constants/loginType';
 import { wechatClient } from '../integrations/wechat';
 import { googleClient } from '../integrations/google';
-import { zoneService, ZoneListItem } from './zone.service';
+import { zoneService } from './zone.service';
+import { AccountAuthResult, GameAuthResult, TokenKind, TokenPayload } from '../types/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
-
-export type TokenKind = 'account' | 'game';
-
-export interface TokenPayload {
-  kind: TokenKind;
-  accountId: string;
-  username: string;
-  userId?: string;
-  zoneId?: number;
-}
-
-export interface AccountAuthResult {
-  token: string;
-  accountId: string;
-  username: string;
-  zones: ZoneListItem[];
-}
-
-export interface GameAuthResult {
-  token: string;
-  accountId: string;
-  userId: string;
-  username: string;
-  zoneId: number;
-}
 
 export const _clients = {
   wechat: wechatClient,
   google: googleClient,
 };
 
-async function withZones(accountId: string, username: string, token: string): Promise<AccountAuthResult> {
-  const zones = await zoneService.listForAccount(accountId);
-  return { token, accountId, username, zones };
+/** openId 本身是正整数时，直接当作平台 puid，避免和角色 id 拼在一起 */
+export function openIdAsPuid(openId: string): number | undefined {
+  if (!/^[1-9]\d*$/.test(openId)) return undefined;
+  const n = Number(openId);
+  if (!Number.isSafeInteger(n) || n <= 0) return undefined;
+  return n;
+}
+
+async function packAccount(account: AccountRecord): Promise<AccountAuthResult> {
+  const ready = await accountRepo.ensurePlatformPuid(account, openIdAsPuid(account.username));
+  if (!ready.platformPuid) throw new BusinessError('分配平台 puid 失败', 500);
+  const zones = await zoneService.listForAccount(ready.id);
+  const token = jwt.sign({ kind: 'account', accountId: ready.id, username: ready.username }, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+  } as jwt.SignOptions);
+  return {
+    token,
+    accountId: ready.id,
+    username: ready.username,
+    platformPuid: ready.platformPuid,
+    zones,
+  };
 }
 
 export const authService = {
@@ -56,7 +52,7 @@ export const authService = {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const account = await accountRepo.create({ username, passwordHash });
-    return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
+    return packAccount(account);
   },
 
   async login(username: string, password: string): Promise<AccountAuthResult> {
@@ -71,7 +67,14 @@ export const authService = {
       const ok = await bcrypt.compare(password, account.passwordHash || '');
       if (!ok) throw new BusinessError('密码错误');
     }
-    return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
+    return packAccount(account);
+  },
+
+  /** 已有账号 token 时复用，并带上平台 puid */
+  async resume(accountId: string): Promise<AccountAuthResult> {
+    const account = await accountRepo.findById(accountId);
+    if (!account) throw new BusinessError('账号不存在', 401);
+    return packAccount(account);
   },
 
   /**
@@ -82,11 +85,25 @@ export const authService = {
     if (!openId) throw new BusinessError('缺少 openId', 400);
     let account = await accountRepo.findByUsername(openId);
     if (!account) {
-      // 自动登录无密码：用 openId 派生一个稳定哈希，避免空密码落库
       const passwordHash = await bcrypt.hash(openId + '_auto', 10);
-      account = await accountRepo.create({ username: openId, passwordHash });
+      account = await accountRepo.create({
+        username: openId,
+        passwordHash,
+        platformPuid: openIdAsPuid(openId),
+      });
     }
-    return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
+    return packAccount(account);
+  },
+
+  /** 网关里的 puid 只查平台账号，不拿角色 uid 来建号 */
+  async loginByPlatformPuid(puid: string): Promise<AccountAuthResult> {
+    const n = openIdAsPuid(puid);
+    if (!n) throw new BusinessError('缺少登录凭据（账号 token、用户名密码或 puid）', 4000);
+    const byPuid = await accountRepo.findByPlatformPuid(n);
+    if (byPuid) return packAccount(byPuid);
+    const byName = await accountRepo.findByUsername(String(n));
+    if (byName) return packAccount(byName);
+    return this.autoLogin(String(n));
   },
 
   async loginByThirdParty(loginType: number, payload: any): Promise<AccountAuthResult> {
@@ -116,7 +133,7 @@ export const authService = {
 
     let account = await accountRepo.findByThirdParty(provider, providerId);
     if (!account) account = await accountRepo.createFromThirdParty(provider, providerId);
-    return withZones(account.id, account.username, this.signAccountToken(account.id, account.username));
+    return packAccount(account);
   },
 
   signAccountToken(accountId: string, username: string): string {
@@ -131,7 +148,7 @@ export const authService = {
         kind: 'game',
         accountId: role.accountId,
         userId: role.id,
-        username: role.username,
+        username: role.playerInfo.userName,
         zoneId: role.zoneId,
       },
       JWT_SECRET,
@@ -141,7 +158,7 @@ export const authService = {
       token,
       accountId: role.accountId,
       userId: role.id,
-      username: role.username,
+      username: role.playerInfo.userName,
       zoneId: role.zoneId,
     };
   },

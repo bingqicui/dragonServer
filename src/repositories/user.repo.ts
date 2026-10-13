@@ -2,10 +2,13 @@ import { UserModel } from '../models/user.model';
 import {
   CreatePlayerInput,
   DEFAULT_ZONE_ID,
+  emptyPlayerInfo,
   PlayerRecord,
   STARTER_COINS,
+  toClientInfo,
   toPlayerRecord,
 } from '../types/player';
+import { markPlayerInfoChanged } from '../utils/requestContext';
 
 export const userRepo = {
   async findById(id: string): Promise<PlayerRecord | null> {
@@ -24,16 +27,21 @@ export const userRepo = {
   },
 
   async create(data: CreatePlayerInput): Promise<PlayerRecord> {
+    const playerInfo = emptyPlayerInfo(data.username);
     const created = await UserModel.create({
       accountId: data.accountId,
-      username: data.username,
+      username: playerInfo.userName,
       coins: data.coins ?? STARTER_COINS,
-      userData: data.userData ?? { level: 1, exp: 0 },
+      playerInfo,
+      items: [],
       weapons: data.weapons ?? {},
+      bagExtra: {},
+      userData: data.userData ?? { level: 1, exp: 0 },
       zoneId: data.zoneId ?? DEFAULT_ZONE_ID,
     });
     const record = toPlayerRecord(created.toObject());
     if (!record) throw new Error('create 后无法映射角色档案');
+    markPlayerInfoChanged(record.id);
     return record;
   },
 
@@ -68,8 +76,24 @@ export const userRepo = {
     return toPlayerRecord(doc);
   },
 
-  async saveUserData(id: string, userData: Record<string, any>): Promise<PlayerRecord | null> {
-    const doc = await UserModel.findByIdAndUpdate(id, { $set: { userData } }, { new: true })
+  /** 把角色整份写回。username 与档案里的名字保持一致，方便旧索引 */
+  async saveRole(role: PlayerRecord): Promise<PlayerRecord | null> {
+    const doc = await UserModel.findByIdAndUpdate(
+      role.id,
+      {
+        $set: {
+          username: role.playerInfo.userName,
+          coins: role.coins,
+          playerInfo: role.playerInfo,
+          items: role.items,
+          weapons: role.weapons,
+          bagExtra: role.bagExtra,
+          userData: role.userData,
+          info: toClientInfo(role),
+        },
+      },
+      { new: true }
+    )
       .lean()
       .exec();
     return toPlayerRecord(doc);

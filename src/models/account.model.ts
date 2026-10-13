@@ -9,6 +9,8 @@ export interface IAccount extends Document {
   username: string;
   passwordHash?: string;
   thirdParties: IThirdParty[];
+  /** 平台账号，给前端当 puid。数字，和角色 uid 不是同一个值 */
+  platformPuid?: number;
   createdAt: Date;
 }
 
@@ -24,6 +26,7 @@ const AccountSchema = new Schema<IAccount>({
     ],
     default: [],
   },
+  platformPuid: { type: Number, required: false },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -32,6 +35,7 @@ AccountSchema.index(
   { 'thirdParties.provider': 1, 'thirdParties.openid': 1 },
   { unique: true, sparse: true, name: 'account_thirdParty_unique' }
 );
+AccountSchema.index({ platformPuid: 1 }, { unique: true, sparse: true, name: 'account_platformPuid_unique' });
 
 export const AccountModel = mongoose.model<IAccount>('Account', AccountSchema);
 

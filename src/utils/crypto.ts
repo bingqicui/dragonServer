@@ -1,24 +1,19 @@
 import crypto from 'crypto';
 import { BusinessError } from './errors';
 import { decompressFromBase64 } from 'lz-string';
+import { DecodedRequest } from '../types/gateway';
 
-export interface DecodedRequest {
-  cmd: number;
-  payload: Record<string, any>;
-  token?: string;
-  uid?: string;
-  serverId?: number | string;
-}
+export type { DecodedRequest };
 
 /**
  * 解析前端 MKHttp 网关请求（application/json）：
  *   { action: number, data: string(compressToBase64), sign: md5(data+KEY), retry?: boolean }
  *
- * - plain = JSON.parse(decompressFromBase64(data)) = { puid, token, server_id, g_id?, ...业务参数 }
+ * - plain = JSON.parse(decompressFromBase64(data)) = { puid, uid?, token, server_id, g_id?, ...业务参数 }
  * - 验签：md5(data + secret) === sign
  *   （请求侧不允许 sign === key 的绕过，只有响应系统错才用该约定）
- * - puid（唯一ID）/ token / server_id（zone）/ g_id（引导ID，未消费）为信封字段，
- *   剥离后其余作为业务 payload 交给 handler；兼容历史字段名 uid
+ * - puid 是平台账号，uid 是角色 user_id，两者分开，不把 uid 当成 puid
+ * - token / server_id / g_id（引导ID，未消费）同为信封字段，剥离后其余交给 handler
  */
 export function decodeRequest(body: any, secret: string): DecodedRequest {
   if (body == null || typeof body !== 'object') {
@@ -49,17 +44,20 @@ export function decodeRequest(body: any, secret: string): DecodedRequest {
     throw new BusinessError('data 内层结构非法', 4000);
   }
 
-  // puid 为前端实际字段名（唯一ID，字符串）；uid 为历史兼容；g_id 为引导ID，后端暂不消费
-  // 接受 string / number，但 0 / "" / null 视为“未提供”（避免前端误传 puid:0 时建出共享账号）
+  // g_id 为引导ID，后端暂不消费。0 / "" / null 视为未提供
   const { puid, uid, token, server_id, g_id, ...payload } = plain;
-  const rawPuid = puid !== undefined ? puid : uid;
-  const reqUid =
-    rawPuid != null && rawPuid !== '' && rawPuid !== 0 ? String(rawPuid) : undefined;
   return {
     cmd: action,
     payload,
     token: typeof token === 'string' && token ? token : undefined,
-    uid: reqUid,
+    puid: presentId(puid),
+    userId: presentId(uid),
     serverId: server_id !== undefined ? server_id : undefined,
   };
+}
+
+function presentId(value: unknown): string | undefined {
+  if (value == null || value === '' || value === 0) return undefined;
+  const text = String(value);
+  return text && text !== '0' ? text : undefined;
 }

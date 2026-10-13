@@ -1,0 +1,14 @@
+---
+description: 用户说「前端」时对应的客户端工程路径
+alwaysApply: true
+---
+
+# 前端工程
+
+用户说「前端」时，只指这个目录，不要再问路径：
+
+`D:\work\client\dragon`
+
+Cocos Creator 工程。协议号在前端 `MSD_ID`，必须与本仓库 `src/protocol/cmd.ts` 的 `CMD` 对齐。改协议、登录、存档、武器时两边一起看。
+
+改本服务器前先读 `AIDoc/项目框架.md`（以当前 `src/` 为准；`README.md`、`AI_RULES.md`、`AIDoc/执行文档.md` 有过时处）。

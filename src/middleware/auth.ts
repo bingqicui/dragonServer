@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
+import { TokenKind } from '../types/auth';
 import { BusinessError } from '../utils/errors';
 
 // 扩展 Request，附带解析出的用户身份
 export interface AuthRequest extends Request {
-  kind?: 'account' | 'game';
+  kind?: TokenKind;
   accountId?: string;
   userId?: string;
   username?: string;

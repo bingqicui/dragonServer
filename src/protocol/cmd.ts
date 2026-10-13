@@ -2,7 +2,9 @@
 // 独立成文件，避免 dispatch <-> handlers 循环依赖。
 export const CMD = {
   LOGIN:10001,
-  /** 登录后拉取角色信息。10002 是服务端下发，不作为请求号 */
+  /** 角色档案。只由服务器附在回包里下发，不注册请求 handler */
+  ROLE_ARCHIVE_PUSH: 10002,
+  /** 登录后拉取角色信息 */
   ROLE_INFO_REQ: 10003,
   /** 心跳请求 */
   HEART_REQ: 10000,
@@ -10,20 +12,18 @@ export const CMD = {
   RED_INFO_ON_LOGIN: 100001,
   /** 背包 / 武器状态全量拉取 */
   BAG: 10010,
+  /** 保存临时档。请求 `{ info }`，整份原样落库 */
+  SAVE_INFO: 10012,
+  /** 读取临时档。成功体 `{ info }` */
+  GET_SAVE_INFO: 10013,
   /** 武器解锁 */
   WEAPON_UNLOCK: 8,
   /** 武器升级 */
   WEAPON_UPGRADE: 9,
-  /** 武器穿戴。请求 `{ id }`。未完成时由本地改 isFitOut 后再存 userData */
+  /** 武器穿戴。请求 `{ id }` */
   WEAPON_EQUIP: 16,
-  /** 武器卸下。请求 `{ id }`。未完成时由本地改 isFitOut 后再存 userData */
+  /** 武器卸下。请求 `{ id }` */
   WEAPON_UNEQUIP: 17,
-  /**
-   * 原样保存 userData。
-   * 请求和成功 Payload 都是 `{ userData }`，其中含 items、weapons。服务器不校验升级公式。
-   * 不进 LocalServer 表。dragonServer 需手写此协议，并在 10003 的 userData 里带回，否则客户端会收到 4004 或下次登录丢失。
-   */
-  USER_DATA_SET: 15,
   /** 区服列表 */
   ZONE_LIST: 13,
   /** 选区进入 */

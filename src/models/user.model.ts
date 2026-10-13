@@ -1,19 +1,20 @@
 import mongoose, { Schema, Document } from 'mongoose';
-
-export interface IWeaponState {
-  level: number;
-  unlocked: boolean;
-  /** 是否穿戴（武器系统）。前端本地改完 isFitOut 再经 USER_DATA_SET 落库 */
-  isFitOut?: boolean;
-}
+import { WeaponState } from '../types/weapon';
 
 /** 区角色（原 User 集合）。登录凭证已拆到 Account。 */
 export interface IUser extends Document {
   accountId: string;
   username: string;
   coins: number;
+  /** 角色档案。10002 只跟这块走 */
+  playerInfo?: Record<string, any>;
+  items?: Record<string, any>[];
+  weapons: Record<string, WeaponState>;
+  /** 临时档里除道具、武器以外的字段 */
+  bagExtra?: Record<string, any>;
   userData: Record<string, any>;
-  weapons: Record<string, IWeaponState>;
+  /** 旧临时档。读入时拆进 items / weapons，新写入不再依赖它 */
+  info?: Record<string, any>;
   zoneId: number;
   // 仅迁移期读取；新角色不再写入
   passwordHash?: string;
@@ -25,8 +26,12 @@ const UserSchema = new Schema<IUser>({
   accountId: { type: String, required: false },
   username: { type: String, required: true },
   coins: { type: Number, default: 0 },
-  userData: { type: Schema.Types.Mixed, default: () => ({ level: 1, exp: 0 }) },
+  playerInfo: { type: Schema.Types.Mixed, required: false },
+  items: { type: Schema.Types.Mixed, required: false },
   weapons: { type: Schema.Types.Mixed, default: () => ({}) },
+  bagExtra: { type: Schema.Types.Mixed, required: false },
+  userData: { type: Schema.Types.Mixed, default: () => ({ level: 1, exp: 0 }) },
+  info: { type: Schema.Types.Mixed, required: false },
   zoneId: { type: Number, default: 1 },
   passwordHash: { type: String, required: false },
   thirdParties: { type: Schema.Types.Mixed, required: false },

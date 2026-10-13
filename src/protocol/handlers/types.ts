@@ -1,18 +1,7 @@
 import { BusinessError } from '../../utils/errors';
+import { Ctx, Handler } from '../../types/protocol';
 
-export type TokenKind = 'account' | 'game';
-
-export interface Ctx {
-  kind?: TokenKind;
-  accountId?: string;
-  userId?: string;
-  username?: string;
-  /** 信封层字段：前端每请求必带的 puid（唯一ID）与 server_id（目标区服），作为当前区服的唯一来源 */
-  puid?: string;
-  serverId?: number | string;
-}
-
-export type Handler = (payload: any, ctx: Ctx) => Promise<any> | any;
+export type { Ctx, Handler };
 
 /** 游戏内 cmd：必须已选区（游戏 token） */
 export function requireAuth(ctx: Ctx) {
