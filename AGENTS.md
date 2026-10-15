@@ -183,20 +183,17 @@ npm run typecheck
 
 **待确认问题**：
 
-### 1. 未使用的文件
+### 1. 未使用的中间件
 
-以下文件在仓库但未被完全使用：
+仅 `src/middleware/auth.ts` (Bearer JWT authMiddleware) 未被引用：
+- 网关鉴权在 `dispatch.ts` 内完成，未挂载此中间件
+- **是否需要删除由作者决定**（保留文件，不要擅自删除）
 
-- `protocol/response.ts` - 已接线，用于 10002 推送
-- `protocol/roleArchive.ts` - 已接线，用于生成 10002 推送数据
-- `utils/requestContext.ts` - `markRoleDirty`（无调用方）
-- `middleware/auth.ts` - Bearer JWT（未挂载 Express）
-- `services/role/role.ts` - 已合并到 `user.service.ts`？
-
-**待确认**：
-
-- `requestContext.ts` / `auth.ts` / `role.ts` 是否需要删除？
-- 还是保留供未来使用？
+**已验证正在使用的文件**（之前错误标记为未使用）：
+- `utils/requestContext.ts` - 被 `dispatch.ts`、`response.ts`、`role.ts`、`user.repo.ts` 引用
+- `protocol/roleArchive.ts` - 被 `response.ts` 引用，用于生成 10002 推送
+- `protocol/response.ts` - 被 `dispatch.ts` 引用，用于 `finalizeResponse` 和 `withArchivePush`
+- `services/role/role.ts` - 被 `auth.ts` 和 `user.ts` handlers 引用
 
 ---
 
@@ -238,8 +235,8 @@ npm run typecheck
 
 ### 中优先级（技术债）
 
-1. 确认并清理未使用的文件（`requestContext.ts` / `auth.ts` / `role.ts`）
-2. 类型定义去重（`types/protocol.ts` vs `handlers/types.ts`）
+1. 类型定义去重（`types/protocol.ts` vs `handlers/types.ts`）
+2. 确认是否需要保留 `middleware/auth.ts`（未引用）
 
 ### 低优先级（改善体验）
 

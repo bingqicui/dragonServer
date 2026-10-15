@@ -154,6 +154,7 @@ if (calculated !== sign) throw Error('签名校验失败');
 **推送场景**：
 
 - 10002 - 角色档案（修改 playerInfo 时自动附加）
+  - 推送链路：`dispatch.ts` → `runWithStore()` → handler → repository/service 调用 `markPlayerInfoChanged()` → `finalizeResponse()` 检查 → `pushArchiveFor()` 生成 10002
 - 未来：红点变化、道具获得等
 
 ---
@@ -906,11 +907,17 @@ function classifyError(e: unknown): OutEnvelope {
 | `idfa` | string? | iOS 广告标识符 |
 | `oaid` | string? | Android 广告标识符 |
 
+**推送触发**：
+
+- repository 层（`user.repo.ts`）或 service 层（`role.ts`）修改 playerInfo 时调用 `markPlayerInfoChanged()`
+- `dispatch.ts` 用 `runWithStore()` 包裹 handler，创建 `RequestStore` 上下文
+- `finalizeResponse()` 检查 `store.playerInfoRoleId`，若有修改则调用 `pushArchiveFor()`
+
 **注意**：
 
 - `heart_time` 和 `localIp` 不落库，每次推送时生成
 - 不包含金币、道具、武器（这些数据走其他协议）
-- 数据库存储格式是 `PlayerInfo`（驼峰命名），推送前转换为 `PlayerArchive`（下划线命名）
+- 数据库存储格式是 `PlayerInfo`（驼峰命名），推送前由 `toPlayerArchive()` 转换为 `PlayerArchive`（下划线命名）
 
 ---
 

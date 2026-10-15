@@ -599,23 +599,26 @@ export function requireAccount(ctx: Ctx) {
 - 存档接口（cmd 15 / 1001）强制 `delete data.coins`
 - 扣费用原子条件更新：`{ $inc: { coins: -cost }, $gte: { coins: cost } }`（并发安全）
 
-### 为什么要 AsyncLocalStorage？
+### 10002 推送机制与 AsyncLocalStorage
 
-**用途**：
+**推送链路**：
+
+1. `dispatch.ts` 用 `runWithStore()` 包裹 handler 调用，创建 `RequestStore` 上下文
+2. repository 层（如 `user.repo.ts`）或 service 层（如 `role.ts`）在修改 playerInfo 时调用 `markPlayerInfoChanged()`
+3. `response.ts` 的 `finalizeResponse()` 检查 `store.playerInfoRoleId`
+4. 若有修改，调用 `roleArchive.ts` 的 `pushArchiveFor()` 生成 10002 数据
+5. 附加在主回包后面，返回数组响应
+
+**AsyncLocalStorage 的作用**：
 
 - `requestContext.ts` 用 `AsyncLocalStorage` 记录本次请求是否修改了 playerInfo
-- `response.ts` 收尾时检查，若有修改则附加一条 10002 推送（角色档案）
-
-**原因**：
-
 - handler / service 层不需要显式传递"是否推送"的标志
 - 多个 service 调用（如武器解锁 + 任务完成）可能都改 playerInfo，统一在收尾时判断
 
-**当前状态**：
+**数据类型**：
 
-- 已在使用中
-- 客户端不发送 10002，仅作为服务器推送
-- 类型为 `PlayerArchive`（下划线命名，用于网络传输）和 `PlayerInfo`（驼峰命名，用于数据库存储）
+- `PlayerInfo` - 驼峰命名，数据库存储格式
+- `PlayerArchive` - 下划线命名，网络传输格式（`toPlayerArchive()` 转换）
 
 ### 武器系统的客户端计算与服务端权威
 
