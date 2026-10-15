@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { accountRepo } from '../repositories/account.repo';
@@ -13,6 +14,13 @@ import { AccountAuthResult, GameAuthResult, TokenKind, TokenPayload } from '../t
 const JWT_SECRET = process.env.JWT_SECRET || 'change_this_secret';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 
+function signToken(payload: Record<string, unknown>): string {
+  return jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRES_IN,
+    jwtid: crypto.randomUUID(),
+  } as jwt.SignOptions);
+}
+
 export const _clients = {
   wechat: wechatClient,
   google: googleClient,
@@ -26,13 +34,23 @@ export function openIdAsPuid(openId: string): number | undefined {
   return n;
 }
 
-async function packAccount(account: AccountRecord): Promise<AccountAuthResult> {
-  const ready = await accountRepo.ensurePlatformPuid(account, openIdAsPuid(account.username));
+/** rotate 为 true 时换新会话，旧 token 失效。10001 复用已有 token 时不要换 */
+async function packAccount(account: AccountRecord, rotate: boolean): Promise<AccountAuthResult> {
+  let ready = await accountRepo.ensurePlatformPuid(account, openIdAsPuid(account.username));
+  if (rotate) {
+    const next = await accountRepo.rotateSession(ready.id);
+    if (!next) throw new BusinessError('账号不存在', 401);
+    ready = next;
+  }
   if (!ready.platformPuid) throw new BusinessError('分配平台 puid 失败', 500);
+  if (!ready.sessionId) throw new BusinessError('登录会话无效', 401);
   const zones = await zoneService.listForAccount(ready.id);
-  const token = jwt.sign({ kind: 'account', accountId: ready.id, username: ready.username }, JWT_SECRET, {
-    expiresIn: JWT_EXPIRES_IN,
-  } as jwt.SignOptions);
+  const token = signToken({
+    kind: 'account',
+    accountId: ready.id,
+    username: ready.username,
+    sessionId: ready.sessionId,
+  });
   return {
     token,
     accountId: ready.id,
@@ -52,7 +70,7 @@ export const authService = {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const account = await accountRepo.create({ username, passwordHash });
-    return packAccount(account);
+    return packAccount(account, true);
   },
 
   async login(username: string, password: string): Promise<AccountAuthResult> {
@@ -67,14 +85,14 @@ export const authService = {
       const ok = await bcrypt.compare(password, account.passwordHash || '');
       if (!ok) throw new BusinessError('密码错误');
     }
-    return packAccount(account);
+    return packAccount(account, true);
   },
 
-  /** 已有账号 token 时复用，并带上平台 puid */
+  /** 已有账号 token 时复用，不换会话。客户端保存的仍是自动登录那个 token */
   async resume(accountId: string): Promise<AccountAuthResult> {
     const account = await accountRepo.findById(accountId);
     if (!account) throw new BusinessError('账号不存在', 401);
-    return packAccount(account);
+    return packAccount(account, false);
   },
 
   /**
@@ -92,7 +110,7 @@ export const authService = {
         platformPuid: openIdAsPuid(openId),
       });
     }
-    return packAccount(account);
+    return packAccount(account, true);
   },
 
   /** 网关里的 puid 只查平台账号，不拿角色 uid 来建号 */
@@ -100,9 +118,9 @@ export const authService = {
     const n = openIdAsPuid(puid);
     if (!n) throw new BusinessError('缺少登录凭据（账号 token、用户名密码或 puid）', 4000);
     const byPuid = await accountRepo.findByPlatformPuid(n);
-    if (byPuid) return packAccount(byPuid);
+    if (byPuid) return packAccount(byPuid, true);
     const byName = await accountRepo.findByUsername(String(n));
-    if (byName) return packAccount(byName);
+    if (byName) return packAccount(byName, true);
     return this.autoLogin(String(n));
   },
 
@@ -133,27 +151,24 @@ export const authService = {
 
     let account = await accountRepo.findByThirdParty(provider, providerId);
     if (!account) account = await accountRepo.createFromThirdParty(provider, providerId);
-    return packAccount(account);
+    return packAccount(account, true);
   },
 
-  signAccountToken(accountId: string, username: string): string {
-    return jwt.sign({ kind: 'account', accountId, username }, JWT_SECRET, {
-      expiresIn: JWT_EXPIRES_IN,
-    } as jwt.SignOptions);
+  signAccountToken(accountId: string, username: string, sessionId: number): string {
+    return signToken({ kind: 'account', accountId, username, sessionId });
   },
 
-  signGameToken(role: PlayerRecord): GameAuthResult {
-    const token = jwt.sign(
-      {
-        kind: 'game',
-        accountId: role.accountId,
-        userId: role.id,
-        username: role.playerInfo.userName,
-        zoneId: role.zoneId,
-      },
-      JWT_SECRET,
-      { expiresIn: JWT_EXPIRES_IN } as jwt.SignOptions
-    );
+  async signGameToken(role: PlayerRecord): Promise<GameAuthResult> {
+    const account = await accountRepo.findById(role.accountId);
+    if (!account?.sessionId) throw new BusinessError('登录会话无效', 401);
+    const token = signToken({
+      kind: 'game',
+      accountId: role.accountId,
+      userId: role.id,
+      username: role.playerInfo.userName,
+      zoneId: role.zoneId,
+      sessionId: account.sessionId,
+    });
     return {
       token,
       accountId: role.accountId,
@@ -163,34 +178,38 @@ export const authService = {
     };
   },
 
-  verifyToken(token: string): TokenPayload {
+  async verifyToken(token: string): Promise<TokenPayload> {
+    let p: {
+      kind?: TokenKind;
+      accountId?: string;
+      userId?: string;
+      username: string;
+      zoneId?: number;
+      sessionId?: number;
+    };
     try {
-      const p = jwt.verify(token, JWT_SECRET) as {
-        kind?: TokenKind;
-        accountId?: string;
-        userId?: string;
-        username: string;
-        zoneId?: number;
-      };
-      // 旧游戏 token：有 userId、无 kind
-      if (p.kind === 'game' || (!p.kind && p.userId)) {
-        if (!p.userId) throw new BusinessError('无效或过期的 token', 401);
-        return {
-          kind: 'game',
-          accountId: p.accountId || '',
-          userId: p.userId,
-          username: p.username,
-          zoneId: typeof p.zoneId === 'number' ? p.zoneId : undefined,
-        };
-      }
-      if (p.kind === 'account' || p.accountId) {
-        if (!p.accountId) throw new BusinessError('无效或过期的 token', 401);
-        return { kind: 'account', accountId: p.accountId, username: p.username };
-      }
-      throw new BusinessError('无效或过期的 token', 401);
-    } catch (e) {
-      if (e instanceof BusinessError) throw e;
+      p = jwt.verify(token, JWT_SECRET) as typeof p;
+    } catch {
       throw new BusinessError('无效或过期的 token', 401);
     }
+    if (typeof p.sessionId !== 'number' || p.sessionId <= 0 || !p.accountId) {
+      throw new BusinessError('无效或过期的 token', 401);
+    }
+    const account = await accountRepo.findById(p.accountId);
+    if (!account || account.sessionId !== p.sessionId) {
+      throw new BusinessError('账号已在其他地方登录', 401);
+    }
+    if (p.kind === 'game' || (!p.kind && p.userId)) {
+      if (!p.userId) throw new BusinessError('无效或过期的 token', 401);
+      return {
+        kind: 'game',
+        accountId: p.accountId,
+        userId: p.userId,
+        username: p.username,
+        zoneId: typeof p.zoneId === 'number' ? p.zoneId : undefined,
+        sessionId: p.sessionId,
+      };
+    }
+    return { kind: 'account', accountId: p.accountId, username: p.username, sessionId: p.sessionId };
   },
 };

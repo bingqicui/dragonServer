@@ -9,6 +9,8 @@ export interface TokenPayload {
   username: string;
   userId?: string;
   zoneId?: number;
+  /** 签发时的登录会话，必须等于账号上的 sessionId */
+  sessionId: number;
 }
 
 /** 账号级登录结果（10001 回包主体，含区列表） */

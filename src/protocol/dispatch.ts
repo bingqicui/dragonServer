@@ -6,6 +6,7 @@ import { RequestStore, runWithStore } from '../utils/requestContext';
 import { authService } from '../services/auth.service';
 import { handlers } from './handlers';
 import { Ctx } from './handlers/types';
+import { CMD } from './cmd';
 import { finalizeResponse, withArchivePush } from './response';
 
 // 统一错误分类：业务错→负数 code、error=0；系统错→code=0、error 取语义码（见 errors.ts SYS_ERROR）。
@@ -41,22 +42,25 @@ router.post(
       const handler = handlers[decoded.cmd];
       if (!handler) throw new BusinessError('未知协议号 cmd: ' + decoded.cmd, 4004);
 
-      // 鉴权：若带 token 则验签取身份（登录类 cmd 无 token，交给 requireAuth 判定）
+      // 除登录外都必须是当前会话。失效 token 回 401，前端按 -10015 踢下线
+      const isLogin = decoded.cmd === CMD.LOGIN;
+      if (!isLogin && !decoded.token) throw new BusinessError('未登录', 401);
+
       const ctx: Ctx = { clientIp };
       ctx.puid = decoded.puid;
       ctx.userId = decoded.userId;
       ctx.serverId = decoded.serverId;
       if (decoded.token) {
         try {
-          const p = authService.verifyToken(decoded.token);
+          const p = await authService.verifyToken(decoded.token);
           ctx.kind = p.kind;
           ctx.accountId = p.accountId || undefined;
           ctx.username = p.username;
           if (p.kind === 'game' && !ctx.userId) {
             ctx.userId = p.userId;
           }
-        } catch {
-          // token 无效：置空，由 requireAuth 在需要登录的 cmd 抛 401
+        } catch (e) {
+          if (!isLogin) throw e;
         }
       }
 

@@ -41,7 +41,7 @@ export const authHandlers: Record<number, Handler> = {
     const role = Role.load(record);
     role.touchLogin();
     const saved = await role.save();
-    const gameToken = authService.signGameToken(saved).token;
+    const gameToken = (await authService.signGameToken(saved)).token;
 
     return { ...accountRes, role: saved, gameToken };
   },

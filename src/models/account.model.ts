@@ -11,6 +11,8 @@ export interface IAccount extends Document {
   thirdParties: IThirdParty[];
   /** 平台账号，给前端当 puid。数字，和角色 uid 不是同一个值 */
   platformPuid?: number;
+  /** 当前有效登录。新登录加一，旧 token 对不上即失效 */
+  sessionId?: number;
   createdAt: Date;
 }
 
@@ -27,6 +29,7 @@ const AccountSchema = new Schema<IAccount>({
     default: [],
   },
   platformPuid: { type: Number, required: false },
+  sessionId: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
 });
 

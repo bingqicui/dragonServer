@@ -78,6 +78,12 @@ export const accountRepo = {
     return this.findById(id);
   },
 
+  /** 新的一次登录。旧 token 里的 sessionId 对不上就会失效 */
+  async rotateSession(id: string): Promise<AccountRecord | null> {
+    const doc = await AccountModel.findByIdAndUpdate(id, { $inc: { sessionId: 1 } }, { new: true }).lean().exec();
+    return toAccountRecord(doc);
+  },
+
   async nextPlatformPuid(): Promise<number> {
     const top = await AccountModel.findOne({ platformPuid: { $gt: 0 } })
       .sort({ platformPuid: -1 })
