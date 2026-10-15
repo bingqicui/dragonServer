@@ -613,8 +613,9 @@ export function requireAccount(ctx: Ctx) {
 
 **当前状态**：
 
-- 代码已实现但未完全接线（`roleArchive.ts` 的 `PlayerArchive` 类型缺失）
-- 生产环境暂不推送 10002，待前端对齐后启用
+- 已在使用中
+- 客户端不发送 10002，仅作为服务器推送
+- 类型为 `PlayerArchive`（下划线命名，用于网络传输）和 `PlayerInfo`（驼峰命名，用于数据库存储）
 
 ---
 

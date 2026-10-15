@@ -172,23 +172,15 @@ npm run typecheck
 
 ## ⚠️ 开放问题（需与作者确认）
 
-以下问题当前无法从代码确定，**禁止臆测**，列为开放问题：
+以下问题当前无法从代码确定，**禁止臆测**，列为开放问题。
 
-### 1. 10002 角色档案推送
+**已解决问题**：
 
-**现状**：
+- ~~10002 角色档案推送~~：已确认在使用中。客户端不发送 10002，但服务器推送时会写入角色档案。类型是 `PlayerArchive`（下划线命名，用于网络传输）和 `PlayerInfo`（驼峰命名，用于数据库存储），两者通过 `toPlayerArchive()` 转换。详见 `PROTOCOL.md` 第 4.13 节。
 
-- `response.ts` / `roleArchive.ts` 已实现框架
-- `protocol/roleArchive.ts` 引用不存在的 `PlayerArchive` 类型
-- 未在 `dispatch.ts` 真正发送
+**待确认问题**：
 
-**待确认**：
-
-- 前端是否支持数组响应？
-- `PlayerArchive` 应包含哪些字段？
-- 何时启用？
-
-### 2. e2e_test.js 协议不匹配
+### 1. e2e_test.js 协议不匹配
 
 **现状**：
 
@@ -200,7 +192,7 @@ npm run typecheck
 - 是否需要兼容旧协议？
 - 或更新测试脚本？
 
-### 3. 前端本地计算 vs 服务端权威
+### 2. 前端本地计算 vs 服务端权威
 
 **现状**：
 
@@ -212,7 +204,7 @@ npm run typecheck
 - 何时切换到服务端权威？
 - 切换前如何兼容？
 
-### 4. 配置表下发策略
+### 3. 配置表下发策略
 
 **现状**：
 
@@ -224,20 +216,20 @@ npm run typecheck
 - 统一不下发？
 - 还是全部下发？
 
-### 5. 未使用的文件
+### 4. 未使用的文件
 
-以下文件在仓库但未被 `dispatch.ts` 调用：
+以下文件在仓库但未被完全使用：
 
-- `protocol/response.ts` - `finalizeResponse`（部分接线）
-- `protocol/roleArchive.ts` - `PlayerArchive` 类型缺失
+- `protocol/response.ts` - 已接线，用于 10002 推送
+- `protocol/roleArchive.ts` - 已接线，用于生成 10002 推送数据
 - `utils/requestContext.ts` - `markRoleDirty`（无调用方）
 - `middleware/auth.ts` - Bearer JWT（未挂载 Express）
 - `services/role/role.ts` - 已合并到 `user.service.ts`？
 
 **待确认**：
 
-- 哪些需要删除？
-- 哪些需要补全接线？
+- `requestContext.ts` / `auth.ts` / `role.ts` 是否需要删除？
+- 还是保留供未来使用？
 
 ---
 
@@ -275,13 +267,12 @@ npm run typecheck
 
 ### 高优先级（影响功能）
 
-1. 补全 `PlayerArchive` 类型，启用 10002 推送
-2. 更新 `e2e_test.js` 到新协议格式
-3. 统一配置表下发策略（全下发或全不下发）
+1. 更新 `e2e_test.js` 到新协议格式
+2. 统一配置表下发策略（全下发或全不下发）
 
 ### 中优先级（技术债）
 
-1. 删除/补全未使用的文件（`roleArchive.ts` / `requestContext.ts` / `auth.ts`）
+1. 确认并清理未使用的文件（`requestContext.ts` / `auth.ts` / `role.ts`）
 2. 优化 cmd 10010 的配置下发（避免重复传输）
 3. 类型定义去重（`types/protocol.ts` vs `handlers/types.ts`）
 

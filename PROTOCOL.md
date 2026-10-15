@@ -153,7 +153,7 @@ if (calculated !== sign) throw Error('签名校验失败');
 
 **推送场景**：
 
-- 10002 - 角色档案（修改 playerInfo 时自动附加，当前未完全接线）
+- 10002 - 角色档案（修改 playerInfo 时自动附加）
 - 未来：红点变化、道具获得等
 
 ---
@@ -166,7 +166,7 @@ if (calculated !== sign) throw Error('签名校验失败');
 |---|---|---|---|---|---|
 | `HEART_REQ` | 10000 | 心跳请求 | 否 | 无 | `system.ts` |
 | `LOGIN` | 10001 | 登录/取 token | 否 | 无 | `auth.ts` |
-| `ROLE_ARCHIVE_PUSH` | 10002 | 角色档案推送（仅服务端下发） | - | - | - |
+| `ROLE_ARCHIVE_PUSH` | 10002 | 角色档案推送（仅服务端下发，不是请求） | - | - | - |
 | `ROLE_INFO_REQ` | 10003 | 拉取角色信息 | 是 | `requireAuth` | `user.ts` |
 | `BAG` | 10010 | 背包/武器状态全量 | 是 | `requireAuth` | `weapon.ts` |
 | `SAVE_INFO` | 10012 | 保存临时档 | 是 | `requireAuth` | `user.ts` |
@@ -832,7 +832,76 @@ function classifyError(e: unknown): OutEnvelope {
 
 ---
 
-### 4.13 临时档（CMD.SAVE_INFO = 10012 / GET_SAVE_INFO = 10013）
+### 4.13 角色档案推送（CMD.ROLE_ARCHIVE_PUSH = 10002）
+
+**推送方向**：服务器 → 客户端（客户端不发送此协议号）
+
+**触发时机**：
+
+- 修改 `playerInfo` 时（如登录时间、战力变化）
+- 自动附在主回包后面（数组响应）
+
+**推送格式**：
+
+```json
+{
+  "code": 0,
+  "action": 10002,
+  "data": "<压缩的角色档案>",
+  "error": 0,
+  "sign": "..."
+}
+```
+
+**解压后**（`PlayerArchive` 格式，下划线命名）：
+
+```json
+{
+  "user_id": "...",
+  "user_name": "test",
+  "user_photo": 0,
+  "user_status": 0,
+  "pid": "178",
+  "platform": 0,
+  "combat": 1200,
+  "create_time": 1728960000,
+  "login_time": 1728970000,
+  "login_count": 5,
+  "heart_time": 1728980000,
+  "localIp": "192.168.1.100",
+  "idfa": null,
+  "oaid": null
+}
+```
+
+**字段说明**：
+
+| 字段 | 类型 | 说明 |
+|---|---|---|
+| `user_id` | string | 角色 ID（MongoDB `_id`） |
+| `user_name` | string | 角色名称 |
+| `user_photo` | number | 头像 ID |
+| `user_status` | number | 角色状态 |
+| `pid` | string | 平台 ID |
+| `platform` | number | 平台数字 |
+| `combat` | number | 战力 |
+| `create_time` | number | 创角时间（秒） |
+| `login_time` | number | 最近登录时间（秒） |
+| `login_count` | number | 登录次数 |
+| `heart_time` | number | 当前服务器时间（秒） |
+| `localIp` | string | 客户端 IP |
+| `idfa` | string? | iOS 广告标识符 |
+| `oaid` | string? | Android 广告标识符 |
+
+**注意**：
+
+- `heart_time` 和 `localIp` 不落库，每次推送时生成
+- 不包含金币、道具、武器（这些数据走其他协议）
+- 数据库存储格式是 `PlayerInfo`（驼峰命名），推送前转换为 `PlayerArchive`（下划线命名）
+
+---
+
+### 4.14 临时档（CMD.SAVE_INFO = 10012 / GET_SAVE_INFO = 10013）
 
 **守卫**：`requireAuth`
 
@@ -917,7 +986,6 @@ GATEWAY_PUBLIC_URL=http://192.168.1.100:3000/gateway  # autoLogin 回给前端�
 
 | 问题 | 当前状态 | 建议 |
 |---|---|---|
-| 10002 角色档案推送 | 后端已实现但 `PlayerArchive` 类型缺失，未发送 | 补全类型，启用推送 |
 | cmd 9/16/17 权威逻辑 | 服务端已实现，前端走"本地计算 + cmd 15" | 前端切换到服务端权威 |
 | 配置表下发 | 只有 cmd 10010 下发武器配置，其他不下发 | 统一不下发，或全部下发 |
 | e2e_test.js | 仍按旧信封格式（`application/x-www-form-urlencoded`） | 更新为 LZString + JSON |
