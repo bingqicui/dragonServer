@@ -283,14 +283,13 @@ npm run build
 node e2e_test.js
 ```
 
-**当前状态**：
+**注意**：
 
-- `e2e_test.js` 仍按旧协议格式（`application/x-www-form-urlencoded`），**跑不过当前网关**
-- 待更新为 LZString + JSON 格式
+- `e2e_test.js` 是**遗留测试文件**，按旧协议格式（`application/x-www-form-urlencoded`），与当前网关不兼容
+- 保留仅作历史参考，**不维护，不需要更新**
+- 推荐使用前端联调或 Node 脚本测试（见第 3 节"调试网关请求"）
 
-**更新建议**：
-
-参考 [协议定义](./PROTOCOL.md) 重写 e2e_test.js：
+**如需编写新测试**，参考协议格式：
 
 ```javascript
 const { compressToBase64, decompressFromBase64 } = require('lz-string');

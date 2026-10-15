@@ -988,7 +988,12 @@ GATEWAY_PUBLIC_URL=http://192.168.1.100:3000/gateway  # autoLogin 回给前端�
 |---|---|---|
 | cmd 9/16/17 权威逻辑 | 服务端已实现，前端走"本地计算 + cmd 15" | 前端切换到服务端权威 |
 | 配置表下发 | 只有 cmd 10010 下发武器配置，其他不下发 | 统一不下发，或全部下发 |
-| e2e_test.js | 仍按旧信封格式（`application/x-www-form-urlencoded`） | 更新为 LZString + JSON |
+
+### 5.5 已知遗留问题
+
+| 文件/组件 | 状态 | 说明 |
+|---|---|---|
+| `e2e_test.js` | 遗留测试，不维护 | 按旧协议格式（`application/x-www-form-urlencoded`），与当前网关不兼容。保留仅作历史参考，不需要更新。 |
 
 ---
 
