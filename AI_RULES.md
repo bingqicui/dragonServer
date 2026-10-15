@@ -1,6 +1,13 @@
 # 打龙游戏服务器 - AI 开发规则文档
 
-> 本文档为 AI 辅助开发时必须遵守的规则与约定，基于现有代码框架整理。
+> ⚠️ **本文档部分内容已过时**，仅供参考。  
+> 请优先阅读最新文档：
+> - [AGENTS.md](./AGENTS.md) - AI Agent 维护指南（最新）
+> - [ARCHITECTURE.md](./ARCHITECTURE.md) - 架构文档（最新）
+> - [PROTOCOL.md](./PROTOCOL.md) - 协议定义（最新）
+> - [DEVELOPMENT.md](./DEVELOPMENT.md) - 开发指南（最新）
+>
+> 本文档为 AI 辅助开发时必须遵守的规则与约定，基于现有代码框架整理。（2026-10-13 版本）
 
 
 
