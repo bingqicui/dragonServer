@@ -37,6 +37,8 @@ export const userRepo = {
       weapons: data.weapons ?? {},
       bagExtra: {},
       userData: data.userData ?? { level: 1, exp: 0 },
+      serverItems: {},
+      energyAt: null,
       zoneId: data.zoneId ?? DEFAULT_ZONE_ID,
     });
     const record = toPlayerRecord(created.toObject());
@@ -89,6 +91,8 @@ export const userRepo = {
           weapons: role.weapons,
           bagExtra: role.bagExtra,
           userData: role.userData,
+          serverItems: role.serverItems,
+          energyAt: role.energyAt,
           info: toClientInfo(role),
         },
       },

@@ -56,6 +56,10 @@ export interface PlayerRecord {
   bagExtra: Record<string, any>;
   /** 引导等旧档，协议 1001 */
   userData: Record<string, any>;
+  /** 服务端道具。10012 不读写这块 */
+  serverItems: Record<string, { num: number }>;
+  /** 体力恢复周期起点，Unix 秒。已满或溢出时为 null */
+  energyAt: number | null;
 }
 
 export interface CreatePlayerInput {
@@ -151,6 +155,8 @@ export function toPlayerRecord(doc: any | null | undefined): PlayerRecord | null
     weapons: Object.keys(weapons).length ? weapons : legacyWeapons,
     bagExtra: plainObject(doc.bagExtra) ?? legacyExtra,
     userData: plainObject(doc.userData) ?? { level: 1, exp: 0 },
+    serverItems: readServerItems(doc.serverItems),
+    energyAt: readEnergyAt(doc.energyAt),
   };
 }
 
@@ -165,6 +171,24 @@ function plainObject(value: unknown): Record<string, any> | undefined {
 
 function objectBag(value: unknown): Record<string, any> {
   return plainObject(value) ?? {};
+}
+
+function readServerItems(value: unknown): Record<string, { num: number }> {
+  const src = plainObject(value);
+  if (!src) return {};
+  const out: Record<string, { num: number }> = {};
+  for (const [key, row] of Object.entries(src)) {
+    const id = Math.floor(Number(key));
+    const num = Math.floor(Number(row && typeof row === 'object' ? (row as { num?: unknown }).num : NaN));
+    if (!id || !Number.isFinite(num) || num <= 0) continue;
+    out[String(id)] = { num };
+  }
+  return out;
+}
+
+function readEnergyAt(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return null;
+  return value > 1e12 ? Math.floor(value / 1000) : Math.floor(value);
 }
 
 function toUnixSeconds(value: unknown): number {

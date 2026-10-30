@@ -15,6 +15,10 @@ export interface IUser extends Document {
   userData: Record<string, any>;
   /** 旧临时档。读入时拆进 items / weapons，新写入不再依赖它 */
   info?: Record<string, any>;
+  /** 服务端道具。与 10012 的 items 分开 */
+  serverItems?: Record<string, { num: number }>;
+  /** 体力恢复周期起点，Unix 秒。空表示停止 */
+  energyAt?: number | null;
   zoneId: number;
   // 仅迁移期读取；新角色不再写入
   passwordHash?: string;
@@ -32,6 +36,8 @@ const UserSchema = new Schema<IUser>({
   bagExtra: { type: Schema.Types.Mixed, required: false },
   userData: { type: Schema.Types.Mixed, default: () => ({ level: 1, exp: 0 }) },
   info: { type: Schema.Types.Mixed, required: false },
+  serverItems: { type: Schema.Types.Mixed, default: () => ({}) },
+  energyAt: { type: Number, default: null },
   zoneId: { type: Number, default: 1 },
   passwordHash: { type: String, required: false },
   thirdParties: { type: Schema.Types.Mixed, required: false },

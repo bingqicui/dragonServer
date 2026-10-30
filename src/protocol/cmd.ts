@@ -10,12 +10,20 @@ export const CMD = {
   HEART_REQ: 10000,
   /** 红点全量拉取（登录时） */
   RED_INFO_ON_LOGIN: 100001,
-  /** 背包 / 武器状态全量拉取 */
+  /** 服务端道具全量。武器不在这条里 */
   BAG: 10010,
+  /** 资源流转。只由服务器附在回包里下发 */
+  RES_FLOW_PUSH: 10011,
   /** 保存临时档。请求 `{ info }`，整份原样落库 */
   SAVE_INFO: 10012,
   /** 读取临时档。成功体 `{ info }` */
   GET_SAVE_INFO: 10013,
+  /** 测试增加道具。请求 `{ id, num }`，num 为本次增加量 */
+  TEST_REWARD_ADD: 10014,
+  /** 测试减少道具。请求 `{ id, num }`，num 为本次减少量 */
+  TEST_REWARD_DEC: 10015,
+  /** 体力快照。只由服务器附在回包里下发 */
+  ENERGY_PUSH: 20001,
   /** 武器解锁 */
   WEAPON_UNLOCK: 8,
   /** 武器升级 */

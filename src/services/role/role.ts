@@ -55,6 +55,43 @@ export class Role {
     return this.data.userData;
   }
 
+  /** 服务端道具。10012 的 replaceBag 不碰这里 */
+  get serverItems(): Record<string, { num: number }> {
+    return this.data.serverItems;
+  }
+
+  /** 体力周期起点。null 表示自然恢复已停止 */
+  get energyAt(): number | null {
+    return this.data.energyAt;
+  }
+
+  itemNum(id: number): number {
+    const row = this.data.serverItems[String(id)];
+    return row && row.num > 0 ? row.num : 0;
+  }
+
+  setItemNum(id: number, num: number): void {
+    const key = String(id);
+    if (num <= 0) {
+      delete this.data.serverItems[key];
+      return;
+    }
+    this.data.serverItems[key] = { num };
+  }
+
+  setEnergyAt(value: number | null): void {
+    this.data.energyAt = value;
+  }
+
+  /** 10010。只带数量大于 0 的道具 */
+  visibleItems(): Record<string, { num: number }> {
+    const out: Record<string, { num: number }> = {};
+    for (const [key, row] of Object.entries(this.data.serverItems)) {
+      if (row && row.num > 0) out[key] = { num: row.num };
+    }
+    return out;
+  }
+
   get username(): string {
     return this.data.playerInfo.userName;
   }

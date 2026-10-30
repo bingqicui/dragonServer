@@ -3,6 +3,7 @@ import { systemHandlers } from './system';
 import { authHandlers } from './auth';
 import { userHandlers } from './user';
 import { weaponHandlers } from './weapon';
+import { itemHandlers } from './item';
 import { zoneHandlers } from './zone';
 
 // 汇总所有业务 handler，按 cmd 数字建索引。
@@ -13,5 +14,6 @@ export const handlers: Record<number, Handler> = {
   ...authHandlers,
   ...userHandlers,
   ...weaponHandlers,
+  ...itemHandlers,
   ...zoneHandlers,
 };

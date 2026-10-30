@@ -1,3 +1,4 @@
+import { settleQuiet } from '../../services/energy.service';
 import { authService } from '../../services/auth.service';
 import { AccountAuthResult } from '../../types/auth';
 import { userRepo } from '../../repositories/user.repo';
@@ -40,10 +41,11 @@ export const authHandlers: Record<number, Handler> = {
     const record = await userRepo.createInZone(accountRes.accountId, accountRes.username, zoneId);
     const role = Role.load(record);
     role.touchLogin();
+    const { pushes } = settleQuiet(role, Math.floor(Date.now() / 1000));
     const saved = await role.save();
     const gameToken = (await authService.signGameToken(saved)).token;
-
-    return { ...accountRes, role: saved, gameToken };
+    const data = { ...accountRes, role: saved, gameToken };
+    return pushes.length ? { data, pushes } : data;
   },
   // 原 LOGIN_INFO_REQ 已合并到 cmd=10003 ROLE_INFO_REQ，不再单独存在
 };

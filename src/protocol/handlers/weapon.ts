@@ -2,14 +2,8 @@ import { weaponService } from '../../services/weapon.service';
 import { CMD } from '../cmd';
 import { Handler, requireAuth } from './types';
 
-// cmd 10010/8/9/16/17：背包、武器解锁、升级、穿戴、卸下
+// cmd 8/9/16/17：武器解锁、升级、穿戴、卸下。道具全量在 item.ts 的 10010
 export const weaponHandlers: Record<number, Handler> = {
-  // 10010 背包 / 武器状态全量拉取
-  [CMD.BAG]: async (_payload, ctx) => {
-    requireAuth(ctx);
-    return weaponService.getWeapons(ctx.userId!);
-  },
-
   // 8 武器解锁
   [CMD.WEAPON_UNLOCK]: async (payload, ctx) => {
     requireAuth(ctx);

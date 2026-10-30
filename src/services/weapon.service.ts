@@ -93,11 +93,4 @@ export const weaponService = {
     if (!updated) throw new BusinessError('操作失败');
     return { weaponId, isFitOut: false };
   },
-
-  // 返回玩家武器状态 + 完整配置（前端用于展示/校验）
-  async getWeapons(userId: string) {
-    const user = await userRepo.findById(userId);
-    if (!user) throw new BusinessError('用户不存在');
-    return { weapons: user.weapons, config: configService.getAllWeapons() };
-  },
 };
