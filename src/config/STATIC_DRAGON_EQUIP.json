@@ -1,0 +1,47 @@
+{
+  "9001": {
+    "id": 9001,
+    "roleName": "假·初始冰枪",
+    "type": 1,
+    "rarity": 1,
+    "unlock": 1,
+    "Count": 0,
+    "fragmentId": 19001
+  },
+  "9002": {
+    "id": 9002,
+    "roleName": "假·通关之弓",
+    "type": 1,
+    "rarity": 2,
+    "unlock": 1,
+    "Count": 3,
+    "fragmentId": 19002
+  },
+  "9003": {
+    "id": 9003,
+    "roleName": "假·碎片之剑",
+    "type": 1,
+    "rarity": 3,
+    "unlock": 2,
+    "Count": 15,
+    "fragmentId": 19003
+  },
+  "9004": {
+    "id": 9004,
+    "roleName": "假·秘法之书",
+    "type": 1,
+    "rarity": 4,
+    "unlock": 4,
+    "Count": 5,
+    "fragmentId": 19004
+  },
+  "9005": {
+    "id": 9005,
+    "roleName": "假·隐藏武器",
+    "type": 1,
+    "rarity": 1,
+    "unlock": 2,
+    "Count": 10,
+    "fragmentId": 19005
+  }
+}

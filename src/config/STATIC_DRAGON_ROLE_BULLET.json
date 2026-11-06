@@ -1,0 +1,110 @@
+{
+  "6": {
+    "id": 6,
+    "class": "ArcBullet"
+  },
+  "9": {
+    "id": 9,
+    "class": "BulletBase"
+  },
+  "11": {
+    "id": 11,
+    "class": "Bullet"
+  },
+  "41": {
+    "id": 41,
+    "class": "Bullet"
+  },
+  "51": {
+    "id": 51,
+    "class": "Bullet"
+  },
+  "71": {
+    "id": 71,
+    "class": "ReflexBullet"
+  },
+  "91": {
+    "id": 91,
+    "class": "Bullet_Laser"
+  },
+  "105": {
+    "id": 105,
+    "class": "Bullet_FollowTarget"
+  },
+  "201": {
+    "id": 201,
+    "class": "LaserRadiationBullet"
+  },
+  "202": {
+    "id": 202,
+    "class": "LaserRadiationBullet"
+  },
+  "1051": {
+    "id": 1051,
+    "class": "Bullet"
+  },
+  "10101": {
+    "id": 10101,
+    "class": "Bullet_10101"
+  },
+  "10102": {
+    "id": 10102,
+    "class": "Bullet_10102"
+  },
+  "10103": {
+    "id": 10103,
+    "class": "Bullet_10103"
+  },
+  "10203": {
+    "id": 10203,
+    "class": "Bullet_10203"
+  },
+  "10301": {
+    "id": 10301,
+    "class": "Bullet_10301"
+  },
+  "10302": {
+    "id": 10302,
+    "class": "Effect_10301"
+  },
+  "40003": {
+    "id": 40003,
+    "class": "Bullet"
+  },
+  "101021": {
+    "id": 101021,
+    "class": "Effect_10102"
+  },
+  "101022": {
+    "id": 101022,
+    "class": "Effect_10102_1"
+  },
+  "101023": {
+    "id": 101023,
+    "class": "Effect_10102_magic"
+  },
+  "101031": {
+    "id": 101031,
+    "class": "Effect_10103"
+  },
+  "101032": {
+    "id": 101032,
+    "class": "Effect_10103_1"
+  },
+  "101033": {
+    "id": 101033,
+    "class": "Effect_10103_2"
+  },
+  "102031": {
+    "id": 102031,
+    "class": "Effect_10203"
+  },
+  "102032": {
+    "id": 102032,
+    "class": "Effect_10203_1"
+  },
+  "102033": {
+    "id": 102033,
+    "class": "Effect_10203_2"
+  }
+}

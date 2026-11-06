@@ -1,0 +1,155 @@
+{
+  "1": {
+    "id": 1,
+    "name": "钻石",
+    "type": 1,
+    "page": 3,
+    "quality": 2,
+    "is_show": 0,
+    "desc": "钻石道具"
+  },
+  "2": {
+    "id": 2,
+    "name": "体力",
+    "type": 1,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "体力道具"
+  },
+  "3": {
+    "id": 3,
+    "name": "金币",
+    "type": 1,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "体力道具"
+  },
+  "4": {
+    "id": 4,
+    "name": "广告券",
+    "type": 1,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "广告券"
+  },
+  "1010": {
+    "id": 1010,
+    "name": "淬毒之刃",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "淬毒之刃"
+  },
+  "1020": {
+    "id": 1020,
+    "name": "虚无之剑",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "虚无之剑"
+  },
+  "1030": {
+    "id": 1030,
+    "name": "脉冲炮",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "脉冲炮"
+  },
+  "1040": {
+    "id": 1040,
+    "name": "干冰弹",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "干冰弹"
+  },
+  "1050": {
+    "id": 1050,
+    "name": "魔法石",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "魔法石"
+  },
+  "1060": {
+    "id": 1060,
+    "name": "炽炎飞斧",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "炽炎飞斧"
+  },
+  "1070": {
+    "id": 1070,
+    "name": "烈焰战环",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "烈焰战环"
+  },
+  "1080": {
+    "id": 1080,
+    "name": "雷神之锤",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "雷神之锤"
+  },
+  "1090": {
+    "id": 1090,
+    "name": "飓风长剑",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "飓风长剑"
+  },
+  "1100": {
+    "id": 1100,
+    "name": "爆裂箭矢",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "爆裂箭矢"
+  },
+  "1110": {
+    "id": 1110,
+    "name": "雷霆法杖",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "雷霆法杖"
+  },
+  "1120": {
+    "id": 1120,
+    "name": "龙魂",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "龙魂"
+  },
+  "1130": {
+    "id": 1130,
+    "name": "幻象法球",
+    "type": 99,
+    "page": 0,
+    "quality": 5,
+    "is_show": 0,
+    "desc": "幻象法球"
+  }
+}

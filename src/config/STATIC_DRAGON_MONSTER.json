@@ -1,0 +1,47 @@
+{
+  "30201": {
+    "id": 30201,
+    "name": "寒冰巨龙",
+    "boxW": 95,
+    "boxH": 84,
+    "bodyGroup": 4,
+    "sectionCreateInterval": 0.3,
+    "buff": "9999"
+  },
+  "30300": {
+    "id": 30300,
+    "name": "外星人飞船",
+    "boxW": 95,
+    "boxH": 84,
+    "bodyGroup": 4,
+    "sectionCreateInterval": 0.3,
+    "buff": "9999"
+  },
+  "30302": {
+    "id": 30302,
+    "name": "深海渔人",
+    "boxW": 95,
+    "boxH": 84,
+    "bodyGroup": 4,
+    "sectionCreateInterval": 0.3,
+    "buff": "9999"
+  },
+  "30303": {
+    "id": 30303,
+    "name": "高达",
+    "boxW": 95,
+    "boxH": 84,
+    "bodyGroup": 4,
+    "sectionCreateInterval": 0.3,
+    "buff": "9999"
+  },
+  "30304": {
+    "id": 30304,
+    "name": "大飞蛾",
+    "boxW": 95,
+    "boxH": 84,
+    "bodyGroup": 4,
+    "sectionCreateInterval": 0.3,
+    "buff": "9999"
+  }
+}

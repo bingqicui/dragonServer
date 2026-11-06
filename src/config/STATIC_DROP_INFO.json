@@ -1,0 +1,22 @@
+{
+  "1000100": {
+    "id": 1000100,
+    "dropId": 1000100,
+    "dropGroupId": 1000,
+    "dropType": 1,
+    "dropGroupType": 1,
+    "dropGroupWeight": 10000,
+    "dropCount": 1,
+    "dropEliminateTimes": 0
+  },
+  "1000110": {
+    "id": 1000110,
+    "dropId": 1000110,
+    "dropGroupId": 1010,
+    "dropType": 1,
+    "dropGroupType": 1,
+    "dropGroupWeight": 10000,
+    "dropCount": 1,
+    "dropEliminateTimes": 0
+  }
+}

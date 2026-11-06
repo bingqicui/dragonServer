@@ -1,0 +1,72 @@
+{
+  "110": {
+    "id": 110,
+    "systemName": "Initial_Physical",
+    "所属系统": "体力",
+    "system": "50",
+    "systemDes": "玩家初始体力"
+  },
+  "120": {
+    "id": 120,
+    "systemName": "Initial_Restore",
+    "所属系统": "体力",
+    "system": "52",
+    "systemDes": "自然回复上限"
+  },
+  "130": {
+    "id": 130,
+    "systemName": "Initial_Gap",
+    "所属系统": "体力",
+    "system": "1200",
+    "systemDes": "回复间隔（单位/s）"
+  },
+  "140": {
+    "id": 140,
+    "systemName": "Initial_Times",
+    "所属系统": "体力",
+    "system": "1",
+    "systemDes": "每次恢复体力"
+  },
+  "150": {
+    "id": 150,
+    "systemName": "Initial_Use",
+    "所属系统": "体力",
+    "system": "5",
+    "systemDes": "每次挑战消耗"
+  },
+  "160": {
+    "id": 160,
+    "systemName": "Initial_Obtain_Iaa",
+    "所属系统": "体力",
+    "system": "15",
+    "systemDes": "广告获得体力"
+  },
+  "170": {
+    "id": 170,
+    "systemName": "Initial_Time_Iaa",
+    "所属系统": "体力",
+    "system": "5",
+    "systemDes": "每日广告获取体力次数"
+  },
+  "180": {
+    "id": 180,
+    "systemName": "Initial_Diamond",
+    "所属系统": "体力",
+    "system": "15",
+    "systemDes": "钻石补充体力"
+  },
+  "190": {
+    "id": 190,
+    "systemName": "Initial_Diamond_Use",
+    "所属系统": "体力",
+    "system": "500,500,600,700,800",
+    "systemDes": "每次钻石补充体力消耗"
+  },
+  "200": {
+    "id": 200,
+    "systemName": "Initial_Diamond_Time",
+    "所属系统": "体力",
+    "system": "5",
+    "systemDes": "钻石补充体力次数"
+  }
+}

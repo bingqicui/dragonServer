@@ -1,8 +1,9 @@
+import { ITEM_ID } from '../constants/item';
 import { CMD } from '../protocol/cmd';
 import { PushItem } from '../types/gateway';
-import { DEFINE } from '../constants/define';
-import { Role } from './role/role';
 import { BusinessError } from '../utils/errors';
+import { Role } from './role/role';
+import { SYSTEM_ID, systemService } from './system.service';
 
 /** 结算已经改过角色，调用方即使随后拒绝请求也要保存 */
 export class PersistError extends BusinessError {
@@ -16,12 +17,19 @@ interface SettleHit {
   dirty: boolean;
 }
 
+/** 体力道具 id 在道具表，恢复上限、间隔、每次恢复量在参数表 */
+function energyRule() {
+  return {
+    itemId: ITEM_ID.ENERGY,
+    cap: systemService.getNumber(SYSTEM_ID.RECOVER_CAP),
+    intervalSec: systemService.getNumber(SYSTEM_ID.RECOVER_INTERVAL),
+    recoverAmount: systemService.getNumber(SYSTEM_ID.RECOVER_AMOUNT),
+  };
+}
+
 /** 按当前时间补自然恢复。数量没变但第一次建周期时 dirty 为 true */
 function takeNatural(role: Role, nowSec: number): SettleHit {
-  const itemId = DEFINE.ENERGY_ITEM_ID;
-  const cap = DEFINE.ENERGY_CAP;
-  const intervalSec = DEFINE.ENERGY_INTERVAL_SEC;
-  const recoverAmount = DEFINE.ENERGY_RECOVER_AMOUNT;
+  const { itemId, cap, intervalSec, recoverAmount } = energyRule();
   const prevNum = role.itemNum(itemId);
   const prevAt = role.energyAt;
   if (cap <= 0 || intervalSec <= 0 || recoverAmount <= 0) {
@@ -54,26 +62,27 @@ function takeNatural(role: Role, nowSec: number): SettleHit {
 }
 
 function energySnapshot(role: Role): Record<string, number | null> {
-  const num = role.itemNum(DEFINE.ENERGY_ITEM_ID);
-  const anchor = num < DEFINE.ENERGY_CAP ? role.energyAt : null;
+  const { itemId, cap, intervalSec, recoverAmount } = energyRule();
+  const num = role.itemNum(itemId);
+  const anchor = num < cap ? role.energyAt : null;
   if (anchor == null) {
     return {
       energy_num: num,
       energy_next_at: 0,
       energy_full_at: 0,
       energy: null,
-      energy_cap: DEFINE.ENERGY_CAP,
-      energy_recover_amount: DEFINE.ENERGY_RECOVER_AMOUNT,
+      energy_cap: cap,
+      energy_recover_amount: recoverAmount,
     };
   }
-  const ticks = Math.ceil((DEFINE.ENERGY_CAP - num) / DEFINE.ENERGY_RECOVER_AMOUNT);
+  const ticks = Math.ceil((cap - num) / recoverAmount);
   return {
     energy_num: num,
-    energy_next_at: anchor + DEFINE.ENERGY_INTERVAL_SEC,
-    energy_full_at: anchor + ticks * DEFINE.ENERGY_INTERVAL_SEC,
+    energy_next_at: anchor + intervalSec,
+    energy_full_at: anchor + ticks * intervalSec,
     energy: anchor,
-    energy_cap: DEFINE.ENERGY_CAP,
-    energy_recover_amount: DEFINE.ENERGY_RECOVER_AMOUNT,
+    energy_cap: cap,
+    energy_recover_amount: recoverAmount,
   };
 }
 
@@ -82,7 +91,7 @@ function energyPush(role: Role): PushItem {
 }
 
 function naturalFlow(role: Role, nowSec: number, granted: number): PushItem {
-  const itemId = DEFINE.ENERGY_ITEM_ID;
+  const { itemId } = energyRule();
   return {
     action: CMD.RES_FLOW_PUSH,
     data: {
@@ -167,14 +176,15 @@ export function applyItemDeltas(role: Role, rawItems: unknown, sign: 1 | -1, now
 
   let energyTouched = false;
   const remain: { id: number; num: number }[] = [];
+  const { itemId, cap } = energyRule();
   for (const row of rows) {
     const before = role.itemNum(row.id);
     const next = before + sign * row.num;
     role.setItemNum(row.id, next);
-    if (row.id === DEFINE.ENERGY_ITEM_ID) {
+    if (row.id === itemId) {
       energyTouched = true;
-      if (next >= DEFINE.ENERGY_CAP) role.setEnergyAt(null);
-      else if (before >= DEFINE.ENERGY_CAP) role.setEnergyAt(nowSec);
+      if (next >= cap) role.setEnergyAt(null);
+      else if (before >= cap) role.setEnergyAt(nowSec);
     }
     remain.push({ id: row.id, num: next });
   }
