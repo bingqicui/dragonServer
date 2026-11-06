@@ -1,4 +1,4 @@
-import { applyItemDelta, PersistError, settleQuiet } from '../../services/energy.service';
+import { applyItemDeltas, PersistError, settleQuiet } from '../../services/energy.service';
 import { Role } from '../../services/role/role';
 import { userService } from '../../services/user.service';
 import { CMD } from '../cmd';
@@ -15,7 +15,7 @@ async function loadRole(ctx: Ctx): Promise<Role> {
 async function changeItem(payload: any, ctx: Parameters<Handler>[1], sign: 1 | -1) {
   const role = await loadRole(ctx);
   try {
-    const pushes = applyItemDelta(role, payload?.id, payload?.num, sign, nowSec());
+    const pushes = applyItemDeltas(role, payload?.items, sign, nowSec());
     await role.save();
     return { data: {}, pushes };
   } catch (e) {

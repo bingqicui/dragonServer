@@ -18,9 +18,9 @@ export const CMD = {
   SAVE_INFO: 10012,
   /** 读取临时档。成功体 `{ info }` */
   GET_SAVE_INFO: 10013,
-  /** 测试增加道具。请求 `{ id, num }`，num 为本次增加量 */
+  /** 测试增加道具。请求 `{ items: { id, num }[] }`，num 为本次增加量 */
   TEST_REWARD_ADD: 10014,
-  /** 测试减少道具。请求 `{ id, num }`，num 为本次减少量 */
+  /** 测试减少道具。请求 `{ items: { id, num }[] }`，num 为本次减少量 */
   TEST_REWARD_DEC: 10015,
   /** 体力快照。只由服务器附在回包里下发 */
   ENERGY_PUSH: 20001,

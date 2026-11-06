@@ -125,44 +125,70 @@ function positiveInt(value: unknown): number | null {
   return n;
 }
 
+/** 合并同 id。空数组、非正整数、加总溢出都当参数非法 */
+function mergeItems(raw: unknown): { id: number; num: number }[] {
+  if (!Array.isArray(raw) || raw.length === 0) throw new BusinessError('参数非法', 400);
+  const order: number[] = [];
+  const sums = new Map<number, number>();
+  for (const row of raw) {
+    if (!row || typeof row !== 'object') throw new BusinessError('参数非法', 400);
+    const id = positiveInt((row as { id?: unknown }).id);
+    const num = positiveInt((row as { num?: unknown }).num);
+    if (id == null || num == null) throw new BusinessError('参数非法', 400);
+    const prev = sums.get(id) ?? 0;
+    const next = prev + num;
+    if (!Number.isSafeInteger(next)) throw new BusinessError('参数非法', 400);
+    if (!sums.has(id)) order.push(id);
+    sums.set(id, next);
+  }
+  return order.map((id) => ({ id, num: sums.get(id)! }));
+}
+
 /**
- * 先结算自然恢复，再加或扣一种道具。
+ * 先校验整包，再结算一次自然恢复，然后统一加或扣。
  * 体力仍低于上限时保留当前周期；跨过上限则停止；从上限以上扣回上限以下则重开周期。
- * 数量不够时抛 PersistError，此时自然恢复已经写在角色上。
+ * 扣减按合并后的数量检查，不够则整单失败。此时若自然恢复已写入，抛 PersistError。
  */
-export function applyItemDelta(role: Role, rawId: unknown, rawNum: unknown, sign: 1 | -1, nowSec: number): PushItem[] {
-  const id = positiveInt(rawId);
-  const amount = positiveInt(rawNum);
-  if (id == null || amount == null) throw new BusinessError('参数非法', 400);
+export function applyItemDeltas(role: Role, rawItems: unknown, sign: 1 | -1, nowSec: number): PushItem[] {
+  const rows = mergeItems(rawItems);
 
   const hit = takeNatural(role, nowSec);
   const pushes: PushItem[] = [];
   gainedFlow(pushes, role, nowSec, hit);
 
-  const before = role.itemNum(id);
-  const next = before + sign * amount;
-  if (next < 0) {
-    if (hit.dirty) throw new PersistError('道具不足');
-    throw new BusinessError('道具不足');
+  if (sign < 0) {
+    for (const row of rows) {
+      if (role.itemNum(row.id) < row.num) {
+        if (hit.dirty) throw new PersistError('道具不足');
+        throw new BusinessError('道具不足');
+      }
+    }
   }
 
-  role.setItemNum(id, next);
-  if (id === DEFINE.ENERGY_ITEM_ID) {
-    if (next >= DEFINE.ENERGY_CAP) role.setEnergyAt(null);
-    else if (before >= DEFINE.ENERGY_CAP) role.setEnergyAt(nowSec);
+  let energyTouched = false;
+  const remain: { id: number; num: number }[] = [];
+  for (const row of rows) {
+    const before = role.itemNum(row.id);
+    const next = before + sign * row.num;
+    role.setItemNum(row.id, next);
+    if (row.id === DEFINE.ENERGY_ITEM_ID) {
+      energyTouched = true;
+      if (next >= DEFINE.ENERGY_CAP) role.setEnergyAt(null);
+      else if (before >= DEFINE.ENERGY_CAP) role.setEnergyAt(nowSec);
+    }
+    remain.push({ id: row.id, num: next });
   }
 
-  const row = { id, num: amount };
   pushes.push({
     action: CMD.RES_FLOW_PUSH,
     data: {
-      reward: { items: sign > 0 ? [row] : [] },
-      cost: sign < 0 ? [row] : [],
-      remain: [{ id, num: next }],
+      reward: { items: sign > 0 ? rows : [] },
+      cost: sign < 0 ? rows : [],
+      remain,
       time: nowSec,
       show_type: sign > 0 ? 1 : 0,
     },
   });
-  if (id === DEFINE.ENERGY_ITEM_ID) pushes.push(energyPush(role));
+  if (energyTouched) pushes.push(energyPush(role));
   return pushes;
 }
