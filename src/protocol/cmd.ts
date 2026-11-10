@@ -22,6 +22,10 @@ export const CMD = {
   TEST_REWARD_ADD: 10014,
   /** 测试减少道具。请求 `{ items: { id, num }[] }`，num 为本次减少量 */
   TEST_REWARD_DEC: 10015,
+  /** 广告补充体力。请求 `{}`。成功体 `{ date, video_count, buy_count }` */
+  ENERGY_AD: 10016,
+  /** 钻石补充体力。请求 `{}`。成功体与 10016 相同 */
+  ENERGY_BUY: 10017,
   /** 体力快照。只由服务器附在回包里下发 */
   ENERGY_PUSH: 20001,
   /** 武器解锁 */

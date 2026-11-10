@@ -21,6 +21,20 @@ export interface PlayerInfo {
   oaid: string | null;
 }
 
+/** 今日体力补充次数。date 是游戏日 YYYYMMDD */
+export interface EnergySupply {
+  date: string;
+  videoCount: number;
+  buyCount: number;
+}
+
+/** 10002 的 energy_supply，以及 10016 / 10017 的成功体 */
+export interface EnergySupplyInfo {
+  date: string;
+  video_count: number;
+  buy_count: number;
+}
+
 /** 下发给前端的 10002。heart_time、localIp 不落库 */
 export interface PlayerArchive {
   user_id: string;
@@ -37,6 +51,8 @@ export interface PlayerArchive {
   localIp: string;
   idfa: string | null;
   oaid: string | null;
+  /** 有存过今日次数才带。没有这段时前端不改本地次数 */
+  energy_supply?: EnergySupplyInfo;
 }
 
 /**
@@ -60,6 +76,8 @@ export interface PlayerRecord {
   serverItems: Record<string, { num: number }>;
   /** 体力恢复周期起点，Unix 秒。已满或溢出时为 null */
   energyAt: number | null;
+  /** 今日广告、钻石补充次数。没结算过为 null */
+  energySupply: EnergySupply | null;
 }
 
 export interface CreatePlayerInput {
@@ -88,9 +106,17 @@ export function emptyPlayerInfo(userName: string, createTime = unixNow()): Playe
   };
 }
 
+export function toEnergySupplyInfo(supply: EnergySupply): EnergySupplyInfo {
+  return {
+    date: supply.date,
+    video_count: supply.videoCount,
+    buy_count: supply.buyCount,
+  };
+}
+
 export function toPlayerArchive(role: PlayerRecord, clientIp?: string): PlayerArchive {
   const info = role.playerInfo;
-  return {
+  const archive: PlayerArchive = {
     user_id: role.id,
     user_name: info.userName,
     user_photo: info.userPhoto,
@@ -106,6 +132,8 @@ export function toPlayerArchive(role: PlayerRecord, clientIp?: string): PlayerAr
     localIp: clientIp || '',
     heart_time: unixNow(),
   };
+  if (role.energySupply) archive.energy_supply = toEnergySupplyInfo(role.energySupply);
+  return archive;
 }
 
 /** 10013 回给前端的临时档 */
@@ -157,6 +185,7 @@ export function toPlayerRecord(doc: any | null | undefined): PlayerRecord | null
     userData: plainObject(doc.userData) ?? { level: 1, exp: 0 },
     serverItems: readServerItems(doc.serverItems),
     energyAt: readEnergyAt(doc.energyAt),
+    energySupply: readEnergySupply(doc.energySupply),
   };
 }
 
@@ -184,6 +213,17 @@ function readServerItems(value: unknown): Record<string, { num: number }> {
     out[String(id)] = { num };
   }
   return out;
+}
+
+function readEnergySupply(value: unknown): EnergySupply | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as { date?: unknown; videoCount?: unknown; buyCount?: unknown };
+  const date = typeof row.date === 'string' ? row.date : '';
+  const videoCount = Math.floor(Number(row.videoCount));
+  const buyCount = Math.floor(Number(row.buyCount));
+  if (!/^\d{8}$/.test(date) || videoCount < 0 || buyCount < 0) return null;
+  if (!Number.isFinite(videoCount) || !Number.isFinite(buyCount)) return null;
+  return { date, videoCount, buyCount };
 }
 
 function readEnergyAt(value: unknown): number | null {

@@ -1,4 +1,5 @@
 import { userRepo } from '../repositories/user.repo';
+import { withRoleLock } from './role/lock';
 import { Role } from './role/role';
 import { DEFAULT_ZONE_ID, PlayerRecord } from '../types/player';
 import { Ctx } from '../protocol/handlers/types';
@@ -26,6 +27,16 @@ export const userService = {
     const existing = await userRepo.findByAccountAndZone(ctx.accountId, zoneId);
     if (existing) return existing;
     return userRepo.createInZone(ctx.accountId, ctx.username || ctx.accountId, zoneId);
+  },
+
+  /** 定位角色后加锁，锁内重新读档，避免和并发的另一笔互相覆盖 */
+  async withRole<T>(ctx: Ctx, fn: (role: Role) => Promise<T>): Promise<T> {
+    const located = await this.resolveRole(ctx);
+    return withRoleLock(located.id, async () => {
+      const fresh = await userRepo.findById(located.id);
+      if (!fresh) throw new BusinessError('角色不存在', 400);
+      return fn(Role.load(fresh));
+    });
   },
 
   /** 10012：道具和武器写入角色，不改 playerInfo，所以不推 10002 */

@@ -1,5 +1,6 @@
 import { userRepo } from '../../repositories/user.repo';
 import {
+  EnergySupply,
   PlayerArchive,
   PlayerInfo,
   PlayerRecord,
@@ -81,6 +82,15 @@ export class Role {
 
   setEnergyAt(value: number | null): void {
     this.data.energyAt = value;
+  }
+
+  /** 今日补充次数。没结算过为 null */
+  get energySupply(): EnergySupply | null {
+    return this.data.energySupply;
+  }
+
+  setEnergySupply(value: EnergySupply): void {
+    this.data.energySupply = value;
   }
 
   /** 10010。只带数量大于 0 的道具 */

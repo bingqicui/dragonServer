@@ -1,14 +1,17 @@
 import { ITEM_ID } from '../constants/item';
 import { CMD } from '../protocol/cmd';
+import { EnergySupplyInfo, toEnergySupplyInfo } from '../types/player';
 import { PushItem } from '../types/gateway';
 import { BusinessError } from '../utils/errors';
+import { markArchivePush } from '../utils/requestContext';
+import { GameRegion, DEFAULT_GAME_REGION, gameDate } from './gameDay';
 import { Role } from './role/role';
 import { SYSTEM_ID, systemService } from './system.service';
 
 /** 结算已经改过角色，调用方即使随后拒绝请求也要保存 */
 export class PersistError extends BusinessError {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, code = 1, pushes: PushItem[] = []) {
+    super(message, code, pushes);
   }
 }
 
@@ -111,21 +114,41 @@ function gainedFlow(pushes: PushItem[], role: Role, nowSec: number, hit: SettleH
   pushes.push(energyPush(role));
 }
 
-/** 登录、查背包：点数真的增加了才推送。建周期会落库，但不推送 */
-export function settleQuiet(role: Role, nowSec: number): { pushes: PushItem[]; dirty: boolean } {
+/** 跨日把广告、钻石次数清零。体力、钻石和恢复周期不动。日期变了才记脏，并让回包附 10002 */
+export function rollSupplyDay(role: Role, nowSec: number, region: GameRegion = DEFAULT_GAME_REGION): boolean {
+  const date = gameDate(nowSec, region);
+  const cur = role.energySupply;
+  if (cur && cur.date === date) return false;
+  role.setEnergySupply({ date, videoCount: 0, buyCount: 0 });
+  markArchivePush(role.id);
+  return true;
+}
+
+/** 登录、查背包：点数真的增加了才推送。建周期或跨日会落库，但不因此推体力 */
+export function settleQuiet(
+  role: Role,
+  nowSec: number,
+  region: GameRegion = DEFAULT_GAME_REGION
+): { pushes: PushItem[]; dirty: boolean } {
   const hit = takeNatural(role, nowSec);
+  const dayChanged = rollSupplyDay(role, nowSec, region);
   const pushes: PushItem[] = [];
   gainedFlow(pushes, role, nowSec, hit);
-  return { pushes, dirty: hit.dirty };
+  return { pushes, dirty: hit.dirty || dayChanged };
 }
 
 /** 心跳：每次都带最终体力快照。点数变了才带 10011 */
-export function settleHeart(role: Role, nowSec: number): { pushes: PushItem[]; dirty: boolean } {
+export function settleHeart(
+  role: Role,
+  nowSec: number,
+  region: GameRegion = DEFAULT_GAME_REGION
+): { pushes: PushItem[]; dirty: boolean } {
   const hit = takeNatural(role, nowSec);
+  const dayChanged = rollSupplyDay(role, nowSec, region);
   const pushes: PushItem[] = [];
   if (hit.granted > 0) pushes.push(naturalFlow(role, nowSec, hit.granted));
   pushes.push(energyPush(role));
-  return { pushes, dirty: hit.dirty };
+  return { pushes, dirty: hit.dirty || dayChanged };
 }
 
 function positiveInt(value: unknown): number | null {
@@ -201,4 +224,113 @@ export function applyItemDeltas(role: Role, rawItems: unknown, sign: 1 | -1, now
   });
   if (energyTouched) pushes.push(energyPush(role));
   return pushes;
+}
+
+const SUPPLY_ERR = {
+  AD_LIMIT: 4116,
+  BUY_LIMIT: 4117,
+  DIAMOND: 4118,
+} as const;
+
+/** 发奖后低于上限则保留原周期；原来没有周期时，结算阶段已经从现在起了一个完整间隔 */
+function grantEnergy(role: Role, amount: number, nowSec: number): void {
+  const { itemId, cap } = energyRule();
+  const before = role.itemNum(itemId);
+  const next = before + amount;
+  role.setItemNum(itemId, next);
+  if (next >= cap) role.setEnergyAt(null);
+  else if (before >= cap) role.setEnergyAt(nowSec);
+}
+
+function supplyData(role: Role): EnergySupplyInfo {
+  return toEnergySupplyInfo(role.energySupply!);
+}
+
+function refuseSupply(
+  role: Role,
+  nowSec: number,
+  hit: SettleHit,
+  dayChanged: boolean,
+  message: string,
+  code: number
+): never {
+  const pushes: PushItem[] = [];
+  if (hit.granted > 0) pushes.push(naturalFlow(role, nowSec, hit.granted));
+  if (hit.dirty) pushes.push(energyPush(role));
+  if (hit.dirty || dayChanged) throw new PersistError(message, code, pushes);
+  throw new BusinessError(message, code);
+}
+
+/** 玩家主动获得的道具。show_type 为 1 时前端才拿 reward.items 弹获得框；0 和 2 只改背包 */
+function rewardFlow(role: Role, nowSec: number, items: { id: number; num: number }[]): PushItem {
+  return {
+    action: CMD.RES_FLOW_PUSH,
+    data: {
+      reward: { items },
+      cost: [],
+      remain: items.map((row) => ({ id: row.id, num: role.itemNum(row.id) })),
+      time: nowSec,
+      show_type: 1,
+    },
+  };
+}
+
+function finishSupply(
+  role: Role,
+  nowSec: number,
+  hit: SettleHit,
+  energyGranted: number,
+  diamondRemain: { id: number; num: number } | null
+): { data: EnergySupplyInfo; pushes: PushItem[] } {
+  const pushes: PushItem[] = [];
+  if (hit.granted > 0) pushes.push(naturalFlow(role, nowSec, hit.granted));
+  if (energyGranted > 0) {
+    pushes.push(rewardFlow(role, nowSec, [{ id: ITEM_ID.ENERGY, num: energyGranted }]));
+  }
+  if (diamondRemain) {
+    pushes.push({
+      action: CMD.RES_FLOW_PUSH,
+      data: { remain: [diamondRemain], show_type: 0 },
+    });
+  }
+  pushes.push(energyPush(role));
+  return { data: supplyData(role), pushes };
+}
+
+/** 10016。次数已满不加体力。成功体是结算后的三个次数字段 */
+export function supplyByAd(role: Role, nowSec: number, region: GameRegion = DEFAULT_GAME_REGION) {
+  const hit = takeNatural(role, nowSec);
+  const dayChanged = rollSupplyDay(role, nowSec, region);
+  const supply = role.energySupply!;
+  const max = systemService.getNumber(SYSTEM_ID.AD_DAILY_COUNT);
+  if (supply.videoCount >= max) {
+    refuseSupply(role, nowSec, hit, dayChanged, '今日广告次数已用完', SUPPLY_ERR.AD_LIMIT);
+  }
+  const granted = systemService.getNumber(SYSTEM_ID.AD_ENERGY);
+  grantEnergy(role, granted, nowSec);
+  role.setEnergySupply({ ...supply, videoCount: supply.videoCount + 1 });
+  return finishSupply(role, nowSec, hit, granted, null);
+}
+
+/** 10017。价格按下标等于加 1 之前的 buy_count 读取。成功体同样是三个次数字段 */
+export function supplyByDiamond(role: Role, nowSec: number, region: GameRegion = DEFAULT_GAME_REGION) {
+  const hit = takeNatural(role, nowSec);
+  const dayChanged = rollSupplyDay(role, nowSec, region);
+  const supply = role.energySupply!;
+  const costs = systemService.getNumberList(SYSTEM_ID.DIAMOND_COST);
+  const max = systemService.getNumber(SYSTEM_ID.DIAMOND_COUNT);
+  const price = supply.buyCount >= max || supply.buyCount >= costs.length ? 0 : costs[supply.buyCount];
+  if (price <= 0) {
+    refuseSupply(role, nowSec, hit, dayChanged, '今日购买次数已用完', SUPPLY_ERR.BUY_LIMIT);
+  }
+  const have = role.itemNum(ITEM_ID.DIAMOND);
+  if (have < price) {
+    refuseSupply(role, nowSec, hit, dayChanged, '钻石不足', SUPPLY_ERR.DIAMOND);
+  }
+  const left = have - price;
+  role.setItemNum(ITEM_ID.DIAMOND, left);
+  const granted = systemService.getNumber(SYSTEM_ID.DIAMOND_ENERGY);
+  grantEnergy(role, granted, nowSec);
+  role.setEnergySupply({ ...supply, buyCount: supply.buyCount + 1 });
+  return finishSupply(role, nowSec, hit, granted, { id: ITEM_ID.DIAMOND, num: left });
 }

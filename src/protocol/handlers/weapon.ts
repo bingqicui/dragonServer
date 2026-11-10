@@ -1,3 +1,4 @@
+import { withRoleLock } from '../../services/role/lock';
 import { weaponService } from '../../services/weapon.service';
 import { CMD } from '../cmd';
 import { Handler, requireAuth } from './types';
@@ -7,24 +8,26 @@ export const weaponHandlers: Record<number, Handler> = {
   // 8 武器解锁
   [CMD.WEAPON_UNLOCK]: async (payload, ctx) => {
     requireAuth(ctx);
-    return weaponService.unlock(ctx.userId!, payload.weaponId);
+    return withRoleLock(ctx.userId!, () => weaponService.unlock(ctx.userId!, payload.weaponId));
   },
 
   // 9 武器升级（逐级）
   [CMD.WEAPON_UPGRADE]: async (payload, ctx) => {
     requireAuth(ctx);
-    return weaponService.upgrade(ctx.userId!, payload.weaponId, Number(payload.targetLevel));
+    return withRoleLock(ctx.userId!, () =>
+      weaponService.upgrade(ctx.userId!, payload.weaponId, Number(payload.targetLevel))
+    );
   },
 
   // 16 武器穿戴
   [CMD.WEAPON_EQUIP]: async (payload, ctx) => {
     requireAuth(ctx);
-    return weaponService.equip(ctx.userId!, payload.id);
+    return withRoleLock(ctx.userId!, () => weaponService.equip(ctx.userId!, payload.id));
   },
 
   // 17 武器卸下
   [CMD.WEAPON_UNEQUIP]: async (payload, ctx) => {
     requireAuth(ctx);
-    return weaponService.unequip(ctx.userId!, payload.id);
+    return withRoleLock(ctx.userId!, () => weaponService.unequip(ctx.userId!, payload.id));
   },
 };

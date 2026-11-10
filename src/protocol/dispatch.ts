@@ -80,7 +80,8 @@ router.post(
         res.status(200).json(errEnv);
         return;
       }
-      res.status(200).json(await withArchivePush(errEnv, store.playerInfoRoleId, clientIp));
+      const settled = e instanceof BusinessError ? e.pushes : [];
+      res.status(200).json(await withArchivePush(errEnv, store.playerInfoRoleId, clientIp, settled));
     }
   }
 );

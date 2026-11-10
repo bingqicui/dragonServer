@@ -19,6 +19,8 @@ export interface IUser extends Document {
   serverItems?: Record<string, { num: number }>;
   /** 体力恢复周期起点，Unix 秒。空表示停止 */
   energyAt?: number | null;
+  /** 今日广告、钻石补充次数 */
+  energySupply?: { date: string; videoCount: number; buyCount: number } | null;
   zoneId: number;
   // 仅迁移期读取；新角色不再写入
   passwordHash?: string;
@@ -38,6 +40,7 @@ const UserSchema = new Schema<IUser>({
   info: { type: Schema.Types.Mixed, required: false },
   serverItems: { type: Schema.Types.Mixed, default: () => ({}) },
   energyAt: { type: Number, default: null },
+  energySupply: { type: Schema.Types.Mixed, default: null },
   zoneId: { type: Number, default: 1 },
   passwordHash: { type: String, required: false },
   thirdParties: { type: Schema.Types.Mixed, required: false },

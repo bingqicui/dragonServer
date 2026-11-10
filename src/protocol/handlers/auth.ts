@@ -1,7 +1,9 @@
 import { settleQuiet } from '../../services/energy.service';
 import { authService } from '../../services/auth.service';
+import { regionFromPayload } from '../../services/gameDay';
 import { AccountAuthResult } from '../../types/auth';
 import { userRepo } from '../../repositories/user.repo';
+import { withRoleLock } from '../../services/role/lock';
 import { Role } from '../../services/role/role';
 import { DEFAULT_ZONE_ID } from '../../types/player';
 import { BusinessError } from '../../utils/errors';
@@ -39,13 +41,17 @@ export const authHandlers: Record<number, Handler> = {
     const zoneId = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_ZONE_ID;
 
     const record = await userRepo.createInZone(accountRes.accountId, accountRes.username, zoneId);
-    const role = Role.load(record);
-    role.touchLogin();
-    const { pushes } = settleQuiet(role, Math.floor(Date.now() / 1000));
-    const saved = await role.save();
-    const gameToken = (await authService.signGameToken(saved)).token;
-    const data = { ...accountRes, role: saved, gameToken };
-    return pushes.length ? { data, pushes } : data;
+    return withRoleLock(record.id, async () => {
+      const fresh = await userRepo.findById(record.id);
+      if (!fresh) throw new BusinessError('角色不存在', 400);
+      const role = Role.load(fresh);
+      role.touchLogin();
+      const { pushes } = settleQuiet(role, Math.floor(Date.now() / 1000), regionFromPayload(payload));
+      const saved = await role.save();
+      const gameToken = (await authService.signGameToken(saved)).token;
+      const data = { ...accountRes, role: saved, gameToken };
+      return pushes.length ? { data, pushes } : data;
+    });
   },
   // 原 LOGIN_INFO_REQ 已合并到 cmd=10003 ROLE_INFO_REQ，不再单独存在
 };

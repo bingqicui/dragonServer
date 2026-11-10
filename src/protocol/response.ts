@@ -31,13 +31,14 @@ export async function finalizeResponse(opts: {
   return [mainEnv, ...envelopes(pushes)];
 }
 
-/** 业务失败时把已经解析到的角色档案附在错误回包后面。系统错误不要调用 */
+/** 业务失败时把已经结算的推送和角色档案附在错误回包后面。系统错误不要调用 */
 export async function withArchivePush(
   main: GatewayResponse,
   roleId: string | undefined,
-  clientIp?: string
+  clientIp?: string,
+  settled: PushItem[] = []
 ): Promise<GatewayResponse | GatewayResponse[]> {
-  const pushes: PushItem[] = [];
+  const pushes: PushItem[] = [...settled];
   await appendArchive(pushes, roleId, clientIp);
   const extra = pushes.filter((p) => p.action !== main.action);
   if (!extra.length) return main;
