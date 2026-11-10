@@ -1,5 +1,11 @@
 # 游戏服务器（Cocos Creator 后端）
 
+> **📚 文档导航**：本文档是快速开始指南。更详细的文档见：  
+> - [架构文档](./ARCHITECTURE.md) - 系统架构、分层设计、技术栈  
+> - [协议定义](./PROTOCOL.md) - 所有协议号、请求响应格式  
+> - [开发指南](./DEVELOPMENT.md) - 如何开发、调试、测试、部署  
+> - [AI Agent 指南](./AGENTS.md) - AI 维护本仓库的规则
+
 技术栈：Node.js + Express + TypeScript + MongoDB
 
 ## 快速开始（开发）

@@ -1,0 +1,82 @@
+---
+description: 服务器架构规则 - 所有代码修改前必读
+alwaysApply: true
+---
+
+# 服务器架构与约束
+
+## 核心定位
+
+本服务器是 Cocos Creator 游戏《打龙》的 Node.js 后端。**唯一业务入口** `POST /gateway`（单网关 + 数字 cmd + LZString 压缩信封 + MD5 签名），不提供 REST API。
+
+技术栈：Node.js + TypeScript + Express 4 + MongoDB(Mongoose) + JWT(双 token) + bcryptjs
+
+## 分层架构（铁律）
+
+```
+dispatch.ts → handlers/*.ts → services/*.ts → repositories/*.ts → models/*.ts
+```
+
+| 层 | 职责 | 禁止 |
+|---|---|---|
+| `protocol/dispatch.ts` | 解密、验 token、查 handler、统一响应（永远 HTTP 200） | 写业务逻辑；新 cmd **不用改它** |
+| `protocol/handlers/*` | 极薄：取参、调守卫(`requireAuth`/`requireAccount`)、转发 service | **写业务逻辑** |
+| `services/*` | **所有业务规则、校验、数值计算**（核心） | 直接 `import` Model |
+| `repositories/*` | CRUD 封装，Document → Record | 写业务规则 |
+| `models/*` | Schema + 索引定义 | 写业务方法 |
+
+## 协议规则
+
+- 所有 cmd 定义在 `src/protocol/cmd.ts` 的 `CMD` 常量，**禁止硬编码数字**
+- 请求信封：`{ action: <cmd>, data: <LZString压缩串>, sign: md5(data+KEY), retry?: boolean }`
+- 响应信封：**永远 HTTP 200**，`{ code, action, data, error, sign }`
+  - 成功：`code=0, error=0`；业务失败：`code<0, error=0`；系统失败：`code=0, error=<数字码>`
+- 新增业务：① `cmd.ts` 加常量 → ② `handlers/*.ts` 加条目 → ③ service 写逻辑
+
+## 服务器权威原则
+
+1. **金币 `coins` 只能服务端改**：存档接口（cmd 15/1001）会 `delete data.coins`
+2. **扣费用原子条件更新**：`userRepo.updateAtomic(id, update, { coins: { $gte: cost } })`
+3. **武器升级只能逐级**：`targetLevel = 当前 + 1`，不能跳级
+4. **第三方登录服务端验签**：微信换 openid，Google 验 idToken（RS256）
+
+## 账号与角色
+
+- **双层结构**：`Account`（跨区账号，存登录凭证） ↔ `User`（区角色，存游戏数据）
+- **双 token**：`account` token（登录后未选区） / `game` token（选区后游戏内）
+- 登录流程：cmd 10001 拿 account token → cmd 13 区列表 → cmd 14 进区拿 game token
+
+## 配置表规则
+
+- 位置：`src/config/*.json`，启动时由 `config.service.ts` 载入内存
+- 运行期**只读**，改配置要重启服务器
+- **不下发给前端**（前端自带/CDN 分发），服务器仅内部权威校验
+
+## 错误处理
+
+- 业务错误：`throw new BusinessError(message, code)`，handler 层**不写 try-catch**
+- HTTP 永远 200，错误进 `code/error` 字段
+- 错误码：401 未登录、4000 请求体非法、4001 签名失败、4004 未知 cmd、500 内部错误
+
+## 禁止事项（违反即回退）
+
+1. ❌ handler 层写业务逻辑
+2. ❌ service 层直接调 Model（走 repository）
+3. ❌ model 层写业务方法
+4. ❌ 把 `coins` 暴露给客户端写入
+5. ❌ 新增 REST 路由（业务必须走 `/gateway`）
+6. ❌ 响应返回非 200 HTTP 状态码
+7. ❌ 硬编码 cmd 数字（用 `CMD` 常量）
+8. ❌ 配置表存动态数据
+9. ❌ 扣费不用原子条件更新
+
+## 修改代码时必须同时更新的文档
+
+每次代码修改后，必须同步更新以下文档（如有影响）：
+
+1. `ARCHITECTURE.md` - 架构总览
+2. `PROTOCOL.md` - 协议定义（新增/修改 cmd 时）
+3. `DEVELOPMENT.md` - 开发指南（新增工具/流程时）
+4. 本规则文件 - 新增架构约束时
+
+改协议时前端（Cocos 仓库 `D:\work\client\dragon`）的 `MSD_ID` 必须同步。
